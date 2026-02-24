@@ -10,49 +10,48 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // --- CONFIGURAÇÃO FIREBASE (MANTENHA AS SUAS CHAVES AQUI) ---
+        // --- CHAVES DO USUÁRIO APLICADAS ---
         const firebaseConfig = {
             apiKey: "AIzaSyDGVTkVOvS9-y6TpIT1njjfYM6QhR_qZng",
-  authDomain: "rpg-task-ffa2b.firebaseapp.com",
-  projectId: "rpg-task-ffa2b",
-  storageBucket: "rpg-task-ffa2b.firebasestorage.app",
-  messagingSenderId: "954731298180",
-  appId: "1:954731298180:web:51b57b46042c1ad64ab1d1""
+            authDomain: "rpg-task-ffa2b.firebaseapp.com",
+            projectId: "rpg-task-ffa2b",
+            storageBucket: "rpg-task-ffa2b.firebasestorage.app",
+            messagingSenderId: "954731298180",
+            appId: "1:954731298180:web:51b57b46042c1ad64ab1d1"
         };
-        // ---------------------------------------------------------
 
         window.firebase = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signInWithEmailAndPassword, signOut, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, firebaseConfig };
     </script>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
         .card-base { background: #1e293b; border: 1px solid #334155; border-radius: 1.5rem; }
-        .xp-bar { height: 10px; transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); border-radius: 9999px; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(10px); }
-        .btn-active:active { transform: scale(0.92); }
+        .xp-bar { height: 10px; transition: width 0.5s ease; border-radius: 9999px; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(10px); }
         .flame-anim { animation: float 3s ease-in-out infinite; filter: drop-shadow(0 0 10px #f97316); }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+        .btn-active:active { transform: scale(0.95); }
     </style>
 </head>
 <body class="p-4 md:p-8 min-h-screen">
 
-    <!-- Ecrã de Carregamento -->
-    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 z-[9999]">
+    <!-- Tela de Carregamento Inteligente -->
+    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 z-[9999] transition-opacity duration-500">
         <div class="relative w-20 h-20 mb-6">
             <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
             <div class="absolute inset-0 border-4 border-t-indigo-500 rounded-full animate-spin"></div>
         </div>
-        <p class="text-indigo-400 font-black animate-pulse text-xs uppercase tracking-[0.3em]">Sincronizando Reino</p>
-        <button id="force-load" onclick="location.reload()" class="hidden mt-8 text-[10px] text-slate-500 underline uppercase font-bold">Recarregar manualmente</button>
+        <p id="load-text" class="text-indigo-400 font-black animate-pulse text-xs uppercase tracking-[0.3em]">Sincronizando Reino</p>
+        <button id="retry-btn" onclick="location.reload()" class="hidden mt-6 bg-slate-800 px-6 py-2 rounded-lg text-xs font-bold">RECARREGAR</button>
     </div>
 
     <div id="app-content" class="hidden max-w-2xl mx-auto pb-24">
         <header class="flex justify-between items-center mb-8">
-            <button onclick="window.toggleSidebar()" class="bg-slate-800 p-3 rounded-2xl shadow-lg border border-slate-700 btn-active">☰ MENU</button>
+            <button onclick="window.toggleSidebar()" class="bg-slate-800 p-3 rounded-2xl shadow-lg btn-active">☰ MENU</button>
             <h1 class="text-2xl font-black text-indigo-400 italic tracking-tighter">TASK RPG</h1>
             <div class="w-10"></div>
         </header>
 
-        <!-- Painel do Herói -->
+        <!-- Painel de Status -->
         <div class="card-base p-6 mb-8 relative overflow-hidden shadow-2xl border-t-2 border-indigo-500/50">
             <div class="flex flex-col items-center mb-6">
                 <div class="text-6xl mb-3 bg-indigo-500/10 p-5 rounded-full border border-indigo-500/20">🧑‍🚀</div>
@@ -80,62 +79,62 @@
             </div>
         </div>
 
-        <!-- Conteúdo -->
-        <main id="tab-container">
+        <main id="main-view">
             <!-- Missões -->
             <div id="view-tasks" class="space-y-4">
                 <div class="card-base p-5 shadow-xl border-l-4 border-indigo-500">
-                    <h3 class="text-xs font-black text-slate-500 mb-3 uppercase tracking-widest">Nova Missão</h3>
-                    <input type="text" id="t-input" placeholder="Qual o teu objetivo?" class="w-full bg-slate-900 p-4 rounded-xl mb-3 outline-none border border-slate-700 focus:border-indigo-500 transition-colors">
+                    <input type="text" id="t-input" placeholder="Nova Missão..." class="w-full bg-slate-900 p-4 rounded-xl mb-3 outline-none border border-slate-700 text-white">
                     <div class="flex gap-2">
                         <select id="t-diff" class="bg-slate-800 p-4 rounded-xl flex-1 text-sm font-bold text-indigo-300">
                             <option value="easy">Fácil</option>
                             <option value="medium">Média</option>
                             <option value="hard">Difícil</option>
                         </select>
-                        <button onclick="window.addTask()" class="bg-indigo-600 px-8 rounded-xl font-black shadow-lg btn-active">ADD</button>
+                        <button onclick="window.addTask()" class="bg-indigo-600 px-8 rounded-xl font-black btn-active">ADD</button>
                     </div>
                 </div>
                 <div id="t-list" class="space-y-3"></div>
             </div>
 
-            <!-- Outras Abas (Foco, Hábitos, Quiz, Loja) -->
+            <!-- Hábitos -->
             <div id="view-habits" class="hidden space-y-4">
                 <div class="card-base p-5 border-l-4 border-orange-500">
                     <h3 class="text-xs font-black text-slate-500 mb-3 uppercase">Novo Hábito</h3>
                     <div class="flex gap-2">
-                        <input type="text" id="h-input" placeholder="Ex: Ler, Treinar..." class="flex-1 bg-slate-900 p-4 rounded-xl border border-slate-700 outline-none">
-                        <button onclick="window.addHabit()" class="bg-orange-600 px-6 rounded-xl font-black">CRIAR</button>
+                        <input type="text" id="h-input" placeholder="Ex: Treinar, Ler..." class="flex-1 bg-slate-900 p-4 rounded-xl border border-slate-700 outline-none text-white">
+                        <button onclick="window.addHabit()" class="bg-orange-600 px-6 rounded-xl font-black btn-active">CRIAR</button>
                     </div>
                 </div>
                 <div id="h-list" class="space-y-3"></div>
             </div>
 
+            <!-- Fogo -->
             <div id="view-foco" class="hidden text-center card-base p-12">
                 <h3 class="text-xl font-black mb-10 uppercase tracking-widest text-indigo-400">Fogueira de Foco</h3>
                 <div class="w-32 h-32 mx-auto mb-10 flame-anim">
                     <svg viewBox="0 0 100 100" class="w-full h-full"><path d="M50 95 Q 25 75 50 10 Q 75 75 50 95" fill="#f97316"/><path d="M50 90 Q 35 75 50 30 Q 65 75 50 90" fill="#fbbf24"/></svg>
                 </div>
-                <div id="timer" class="text-7xl font-mono font-black mb-10 text-white tracking-widest">20:00</div>
-                <button id="timer-btn" onclick="window.toggleTimer()" class="w-full bg-green-600 py-5 rounded-2xl font-black text-xl shadow-xl btn-active">COMEÇAR SESSÃO</button>
+                <div id="timer" class="text-7xl font-mono font-black mb-10 text-white">20:00</div>
+                <button id="timer-btn" onclick="window.toggleTimer()" class="w-full bg-green-600 py-5 rounded-2xl font-black text-xl shadow-xl btn-active">COMEÇAR</button>
             </div>
 
+            <!-- Quiz -->
             <div id="view-quiz" class="hidden text-center card-base p-8">
-                <h3 class="text-xl font-black mb-6 uppercase text-indigo-400 tracking-widest font-bold">🧠 Quiz do Dia</h3>
+                <h3 class="text-xl font-black mb-6 uppercase text-indigo-400 font-bold">🧠 Quiz Diário</h3>
                 <div id="quiz-ui">
                     <p id="q-text" class="text-lg mb-8 font-bold">A carregar pergunta...</p>
                     <div id="q-options" class="grid gap-3"></div>
                 </div>
             </div>
 
+            <!-- Loja -->
             <div id="view-store" class="hidden space-y-4">
-                <h3 class="text-xl font-black mb-6 text-yellow-500 uppercase tracking-widest">Mercado Negro</h3>
+                <h3 class="text-xl font-black mb-6 text-yellow-500 uppercase tracking-widest">Mercado</h3>
                 <div id="store-list" class="grid gap-3"></div>
             </div>
 
-            <div id="view-inventory" class="hidden grid grid-cols-2 gap-4">
-                <!-- Mochila via JS -->
-            </div>
+            <!-- Inventário -->
+            <div id="view-inventory" class="hidden grid grid-cols-2 gap-4"></div>
         </main>
     </div>
 
@@ -143,30 +142,30 @@
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/85 z-40 hidden" onclick="window.toggleSidebar()"></div>
     <div id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-slate-950 z-50 transform -translate-x-full transition-transform duration-300 p-8 flex flex-col border-r border-slate-800">
         <h3 class="text-2xl font-black text-indigo-500 mb-10 italic">TASK RPG</h3>
-        <nav class="flex-1 space-y-1 overflow-y-auto">
-            <button onclick="window.switchTab('tasks')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold flex items-center gap-3">⚔️ Missões</button>
-            <button onclick="window.switchTab('habits')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold flex items-center gap-3">🔥 Hábitos</button>
-            <button onclick="window.switchTab('foco')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold flex items-center gap-3">🧘 Foco</button>
-            <button onclick="window.switchTab('quiz')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold flex items-center gap-3">🧠 Quiz</button>
-            <button onclick="window.switchTab('store')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold flex items-center gap-3">💰 Loja</button>
-            <button onclick="window.switchTab('inventory')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold flex items-center gap-3">🎒 Mochila</button>
+        <nav class="flex-1 space-y-1">
+            <button onclick="window.switchTab('tasks')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">⚔️ Missões</button>
+            <button onclick="window.switchTab('habits')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">🔥 Hábitos</button>
+            <button onclick="window.switchTab('foco')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">🧘 Foco</button>
+            <button onclick="window.switchTab('quiz')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">🧠 Quiz</button>
+            <button onclick="window.switchTab('store')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">💰 Loja</button>
+            <button onclick="window.switchTab('inventory')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">🎒 Mochila</button>
             <hr class="border-slate-800 my-6">
             <button id="link-btn" onclick="window.openAuth('link')" class="w-full p-4 bg-indigo-600 rounded-xl font-black text-xs shadow-lg">🔗 SALVAR EM NUVEM</button>
             <button id="login-btn" onclick="window.openAuth('login')" class="w-full p-4 border border-indigo-500/30 text-indigo-400 rounded-xl font-bold text-xs mt-2">🔑 JÁ TENHO CONTA</button>
             <button id="logout-btn" onclick="window.handleLogout()" class="hidden w-full p-4 bg-red-900/20 text-red-400 rounded-xl font-bold text-xs mt-4">🚪 SAIR DO JOGO</button>
         </nav>
-        <p class="text-[9px] text-slate-700 text-center uppercase tracking-widest mt-4">V-GOLD STABLE</p>
+        <p class="text-[9px] text-slate-700 text-center uppercase tracking-widest mt-4">V-Blindada Stable</p>
     </div>
 
-    <!-- Modal de Autenticação Inteligente -->
+    <!-- Modal Auth -->
     <div id="modal-auth" class="modal-overlay hidden">
         <div class="bg-slate-900 p-8 rounded-[2.5rem] border-2 border-indigo-500 w-full max-w-[340px] text-center shadow-2xl">
             <h3 id="modal-title" class="text-xl font-black mb-2 uppercase text-indigo-400">Vincular Conta</h3>
-            <p id="modal-desc" class="text-[10px] text-slate-500 mb-8 uppercase tracking-widest font-bold">Segurança máxima para o seu herói</p>
+            <p id="modal-desc" class="text-[10px] text-slate-500 mb-8 uppercase tracking-widest font-bold">Guarde o seu progresso</p>
             <input type="email" id="auth-email" placeholder="E-mail" class="w-full p-4 bg-slate-800 rounded-2xl mb-3 border border-slate-700 text-sm outline-none text-white focus:border-indigo-500">
             <input type="password" id="auth-pass" placeholder="Senha" class="w-full p-4 bg-slate-800 rounded-2xl mb-8 border border-slate-700 text-sm outline-none text-white focus:border-indigo-500">
             <button id="auth-btn" onclick="window.handleAuth()" class="w-full bg-green-600 py-5 rounded-2xl font-black text-white shadow-xl btn-active uppercase tracking-widest">Confirmar</button>
-            <button onclick="window.closeAuth()" class="w-full py-4 text-slate-600 text-[9px] font-black mt-4 uppercase tracking-[0.2em]">Cancelar</button>
+            <button onclick="window.closeAuth()" class="w-full py-4 text-slate-600 text-[9px] font-black mt-4">CANCELAR</button>
         </div>
     </div>
 
@@ -176,26 +175,27 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        
-        // ESTE É O SEU ENDEREÇO DE DADOS FIXO. NUNCA MAIS MUDE ISTO.
-        const appId = "task-rpg-production-stable-v1"; 
+        const appId = "rpg-task-stable-final"; 
 
         let user = null, stats = {}, tasks = [], habits = [], inventory = {}, timerInt = null, authMode = 'link';
 
         const STORE_ITEMS = [
-            { id: 'item_sword', name: 'Gládio de Ferro', price: 100, icon: '⚔️' },
-            { id: 'item_shield', name: 'Escudo Real', price: 300, icon: '🛡️' },
-            { id: 'item_potion', name: 'Elixir de Foco', price: 50, icon: '🧪' }
+            { id: 'item_sword', name: 'Espada Lendária', price: 150, icon: '⚔️' },
+            { id: 'item_shield', name: 'Escudo Real', price: 400, icon: '🛡️' },
+            { id: 'item_potion', name: 'Poção de Foco', price: 50, icon: '🧪' }
         ];
 
         // --- Autenticação Inteligente ---
         onAuthStateChanged(auth, (u) => {
             if (u) {
                 user = u;
-                document.getElementById('app-content').classList.remove('hidden');
-                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('loading-screen').classList.add('opacity-0');
+                setTimeout(() => {
+                    document.getElementById('loading-screen').classList.add('hidden');
+                    document.getElementById('app-content').classList.remove('hidden');
+                }, 500);
+
                 document.getElementById('hero-email').textContent = u.isAnonymous ? "Sessão Convidado" : u.email;
-                
                 document.getElementById('link-btn').classList.toggle('hidden', !u.isAnonymous);
                 document.getElementById('login-btn').classList.toggle('hidden', !u.isAnonymous);
                 document.getElementById('logout-btn').classList.toggle('hidden', u.isAnonymous);
@@ -203,13 +203,13 @@
                 startSync();
             } else {
                 signInAnonymously(auth).catch(() => {
-                    document.getElementById('force-load').classList.remove('hidden');
+                    document.getElementById('retry-btn').classList.remove('hidden');
                 });
             }
         });
 
         window.handleLogout = async () => {
-            if(confirm("Deseja mesmo sair do Reino?")) {
+            if(confirm("Deseja sair do Reino?")) {
                 await signOut(auth);
                 location.reload();
             }
@@ -219,28 +219,28 @@
             const email = document.getElementById('auth-email').value;
             const pass = document.getElementById('auth-pass').value;
             const btn = document.getElementById('auth-btn');
-            if(!email || pass.length < 6) return alert("Email inválido ou senha curta.");
+            if(!email || pass.length < 6) return alert("Dados inválidos ou senha curta.");
             
             btn.disabled = true;
-            btn.textContent = "A PROCESSAR...";
+            btn.textContent = "PROCESSANDO...";
 
             try {
                 if(authMode === 'link') {
                     const cred = EmailAuthProvider.credential(email, pass);
                     await linkWithCredential(auth.currentUser, cred);
-                    alert("✅ Conta Vinculada! O seu progresso está guardado.");
+                    alert("✅ Herói Vinculado!");
                 } else {
                     await signInWithEmailAndPassword(auth, email, pass);
-                    alert("👋 Herói detectado! Bem-vindo de volta.");
+                    alert("👋 Bem-vindo de volta!");
                 }
                 location.reload();
             } catch (err) {
                 btn.disabled = false;
                 btn.textContent = "CONFIRMAR";
                 
-                // TRATAMENTO DO ERRO QUE VOCÊ VIU NA IMAGEM
+                // CORREÇÃO DO ERRO DA SUA IMAGEM:
                 if (err.code === 'auth/provider-already-linked' || err.code === 'auth/email-already-in-use') {
-                    if(confirm("Este e-mail já tem um herói! Deseja fazer LOGIN na sua conta antiga?")) {
+                    if(confirm("Este e-mail já tem um herói guardado! Deseja fazer LOGIN na sua conta existente?")) {
                         window.openAuth('login');
                     }
                 } else {
@@ -249,24 +249,20 @@
             }
         };
 
-        // --- Sincronização em Tempo Real ---
+        // --- Sincronização de Dados ---
         function startSync() {
-            // Stats
             onSnapshot(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), (s) => {
                 stats = s.exists() ? s.data() : { lvl: 1, xp: 0, coins: 0, oil: 0 };
                 updateUI();
             });
-            // Missões
             onSnapshot(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), (s) => {
                 tasks = s.docs.map(d => ({id: d.id, ...d.data()}));
                 renderTasks();
             });
-            // Hábitos
             onSnapshot(collection(db, `artifacts/${appId}/users/${user.uid}/habits`), (s) => {
                 habits = s.docs.map(d => ({id: d.id, ...d.data()}));
                 renderHabits();
             });
-            // Mochila
             onSnapshot(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'inventory'), (s) => {
                 inventory = s.exists() ? s.data() : {};
                 renderInventory();
@@ -281,7 +277,7 @@
             document.getElementById('xp-bar').style.width = `${((stats.xp || 0) / xpMax) * 100}%`;
         }
 
-        // --- Lógica de Jogo ---
+        // --- Funcionalidades do RPG ---
         window.addTask = async () => {
             const name = document.getElementById('t-input').value;
             const diff = document.getElementById('t-diff').value;
@@ -293,403 +289,6 @@
         function renderTasks() {
             const list = document.getElementById('t-list');
             list.innerHTML = tasks.length === 0 ? '<p class="text-center py-6 text-slate-600 italic">Sem missões ativas.</p>' : 
-            tasks.map(t => `
-                <div class="card-base p-4 flex justify-between items-center border border-slate-700/50">
-                    <div><p class="font-bold text-sm text-white">${t.name}</p><span class="text-[9px] text-indigo-400 uppercase font-black">${t.diff}</span></div>
-                    <button onclick="window.completeTask('${t.id}', '${t.diff}')" class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 px-5 py-2 rounded-xl font-black text-xs active:bg-indigo-600">FEITO</button>
-                </div>
-            `).join('');
-        }
-
-        window.completeTask = async (id, diff) => {
-            const gain = diff === 'easy' ? 10 : (diff === 'medium' ? 25 : 50);
-            let nxp = (stats.xp || 0) + gain;
-            let nlvl = (stats.lvl || 1);
-            if(nxp >= nlvl * 100) { nxp = 0; nlvl++; }
-            await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { ...stats, xp: nxp, lvl: nlvl, coins: (stats.coins || 0) + Math.floor(gain/2) });
-            await deleteDoc(doc(db, `artifacts/${appId}/users/${user.uid}/tasks`, id));
-        };
-
-        window.addHabit = async () => {
-            const name = document.getElementById('h-input').value;
-            if(!name) return;
-            await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/habits`), { name, streak: 0, lastCheck: 0 });
-            document.getElementById('h-input').value = "";
-        };
-
-        function renderHabits() {
-            const list = document.getElementById('h-list');
-            list.innerHTML = habits.map(h => `
-                <div class="card-base p-4 flex justify-between items-center">
-                    <div><p class="font-bold text-sm text-white">${h.name}</p><span class="text-[10px] text-orange-400 font-bold">🔥 Combo: ${h.streak}</span></div>
-                    <button onclick="window.checkHabit('${h.id}')" class="bg-orange-600 px-5 py-2 rounded-xl font-black text-xs">CHECK</button>
-                </div>
-            `).join('');
-        }
-
-        window.checkHabit = async (id) => {
-            const h = habits.find(i => i.id === id);
-            const today = new Date().setHours(0,0,0,0);
-            if(h.lastCheck >= today) return alert("Hábito já registado hoje!");
-            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/habits`, id), { streak: h.streak + 1, lastCheck: Date.now() });
-            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: (stats.coins || 0) + 5, xp: (stats.xp || 0) + 5 });
-        };
-
-        window.toggleTimer = () => {
-            if(timerInt) { clearInterval(timerInt); timerInt = null; document.getElementById('timer').textContent = "20:00"; document.getElementById('timer-btn').textContent = "COMEÇAR"; return; }
-            let s = 20 * 60;
-            document.getElementById('timer-btn').textContent = "CANCELAR";
-            timerInt = setInterval(async () => {
-                s--;
-                document.getElementById('timer').textContent = `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
-                if(s <= 0) {
-                    clearInterval(timerInt); timerInt = null;
-                    await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { oil: (stats.oil || 0) + 1 });
-                    alert("Fogo alimentado! +1 Óleo.");
-                    window.toggleTimer();
-                }
-            }, 1000);
-        };
-
-        const QUIZ_LIST = [{q:"O que o Modo Foco recompensa?", o:["Ouro", "XP", "Óleo"], a:2}, {q:"Qual a melhor forma de vencer?", o:["Focar", "Desistir", "Dormir"], a:0}];
-        window.initQuiz = () => {
-            const q = QUIZ_LIST[Math.floor(Math.random() * QUIZ_LIST.length)];
-            document.getElementById('q-text').textContent = q.q;
-            document.getElementById('q-options').innerHTML = q.o.map((o, i) => `
-                <button onclick="window.answerQuiz(${i === q.a})" class="bg-slate-800 p-4 rounded-xl font-bold hover:bg-indigo-900 transition-colors">${o}</button>
-            `).join('');
-        };
-        window.answerQuiz = async (win) => {
-            if(win) { await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: (stats.coins || 0) + 30 }); alert("✨ Sabedoria! +30 Ouro."); }
-            else alert("❌ Errado!");
-            window.switchTab('tasks');
-        };
-
-        function renderStore() {
-            const list = document.getElementById('store-list');
-            list.innerHTML = STORE_ITEMS.map(i => `<div class="card-base p-4 flex justify-between items-center"><span>${i.icon} ${i.name}</span><button onclick="window.buyItem('${i.id}', ${i.price})" class="bg-yellow-600 px-4 py-2 rounded-xl font-black text-xs">💰 ${i.price}</button></div>`).join('');
-        }
-        window.buyItem = async (id, price) => {
-            if(stats.coins < price) return alert("Ouro insuficiente!");
-            const newInv = { ...inventory };
-            newInv[id] = (newInv[id] || 0) + 1;
-            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: stats.coins - price });
-            await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'inventory'), newInv);
-            alert("Item comprado!");
-        };
-        function renderInventory() {
-            const list = document.getElementById('view-inventory');
-            const keys = Object.keys(inventory).filter(k => inventory[k] > 0);
-            list.innerHTML = keys.length === 0 ? '<p class="col-span-2 text-center py-10 opacity-30">Mochila Vazia</p>' : 
-            keys.map(k => {
-                const item = STORE_ITEMS.find(i => i.id === k);
-                return `<div class="card-base p-4 text-center"><div class="text-3xl">${item.icon}</div><p class="font-bold text-xs mt-2 uppercase">${item.name}</p><p class="text-indigo-400 font-bold">x${inventory[k]}</p></div>`;
-            }).join('');
-        }
-
-        // --- Interface ---
-        window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebar-overlay').classList.toggle('hidden'); };
-        window.switchTab = (tab) => {
-            const tabs = ['tasks', 'habits', 'foco', 'quiz', 'store', 'inventory'];
-            tabs.forEach(t => document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab));
-            if(tab === 'quiz') window.initQuiz();
-            if(tab === 'store') renderStore();
-            window.toggleSidebar();
-        };
-        window.openAuth = (m) => { authMode = m; document.getElementById('modal-title').textContent = m === 'link' ? "Salvar Herói" : "Retomar Herói"; document.getElementById('modal-auth').classList.remove('hidden'); };
-        window.closeAuth = () => document.getElementById('modal-auth').classList.add('hidden');
-    </script>
-</body>
-</html>
-
-
-    <!-- Tela de Carregamento Robusta -->
-    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 z-[9999] transition-opacity duration-500">
-        <div id="loading-spinner" class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
-        <p id="loading-text" class="text-indigo-400 font-bold animate-pulse text-xs uppercase tracking-widest">Sincronizando Reino...</p>
-        <button id="retry-btn" onclick="location.reload()" class="hidden mt-6 bg-indigo-600 px-6 py-2 rounded-lg font-bold">Recarregar App</button>
-    </div>
-
-    <div id="app-content" class="hidden max-w-2xl mx-auto pb-24">
-        <header class="flex justify-between items-center mb-6">
-            <button onclick="window.toggleSidebar()" class="bg-slate-800 p-3 rounded-xl shadow-lg btn-active">☰ MENU</button>
-            <h1 class="text-2xl font-black text-indigo-400 italic">TASK RPG</h1>
-            <div class="w-10"></div>
-        </header>
-
-        <!-- Painel do Herói -->
-        <div class="card-base p-6 mb-8 relative overflow-hidden shadow-2xl">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
-            <div class="flex flex-col items-center mb-6">
-                <div class="text-6xl mb-3 bg-indigo-500/10 p-5 rounded-full border border-indigo-500/20 shadow-inner">🧑‍🚀</div>
-                <h2 id="hero-name" class="text-2xl font-bold">Herói</h2>
-                <p id="hero-email" class="text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-widest"></p>
-            </div>
-            
-            <div class="grid grid-cols-3 gap-3 mb-6">
-                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
-                    <span class="text-[10px] uppercase text-indigo-400 font-black">Nível</span>
-                    <div id="lvl" class="text-2xl font-black">1</div>
-                </div>
-                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
-                    <span class="text-[10px] uppercase text-yellow-500 font-black">Ouro</span>
-                    <div id="coins" class="text-2xl font-black text-yellow-500">0</div>
-                </div>
-                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
-                    <span class="text-[10px] uppercase text-orange-500 font-black">Óleo</span>
-                    <div id="oil" class="text-2xl font-black text-orange-500">0</div>
-                </div>
-            </div>
-
-            <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
-                <div id="xp-bar" class="xp-bar bg-indigo-500 h-full w-0"></div>
-            </div>
-        </div>
-
-        <!-- Seções Principais -->
-        <main>
-            <!-- Missões -->
-            <div id="section-tasks" class="space-y-4">
-                <div class="card-base p-5 shadow-xl">
-                    <input type="text" id="t-input" placeholder="Nova missão..." class="w-full bg-slate-900 p-4 rounded-xl mb-3 outline-none border border-slate-700 text-white">
-                    <div class="flex gap-2">
-                        <select id="t-diff" class="bg-slate-800 p-4 rounded-xl flex-1 text-sm font-bold text-indigo-300">
-                            <option value="easy">Fácil</option>
-                            <option value="medium">Média</option>
-                            <option value="hard">Difícil</option>
-                        </select>
-                        <button onclick="window.addTask()" class="bg-indigo-600 px-8 rounded-xl font-black shadow-lg btn-active">ADD</button>
-                    </div>
-                </div>
-                <div id="t-list" class="space-y-3"></div>
-            </div>
-
-            <!-- Hábitos -->
-            <div id="section-habits" class="hidden space-y-4">
-                <div class="card-base p-5">
-                    <h3 class="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider">Novo Hábito</h3>
-                    <div class="flex gap-2">
-                        <input type="text" id="h-input" placeholder="Ex: Treinar, Ler..." class="flex-1 bg-slate-900 p-4 rounded-xl border border-slate-700 outline-none text-white">
-                        <button onclick="window.addHabit()" class="bg-indigo-600 px-6 rounded-xl font-black">CRIAR</button>
-                    </div>
-                </div>
-                <div id="h-list" class="space-y-3"></div>
-            </div>
-
-            <!-- Foco -->
-            <div id="section-foco" class="hidden text-center card-base p-10">
-                <h3 class="text-xl font-bold mb-8 uppercase text-indigo-400">Fogueira de Foco</h3>
-                <div class="w-32 h-32 mx-auto mb-8 flame-anim">
-                    <svg viewBox="0 0 100 100"><path d="M50 95 Q 25 75 50 10 Q 75 75 50 95" fill="#f97316"/><path d="M50 90 Q 35 75 50 30 Q 65 75 50 90" fill="#fbbf24"/></svg>
-                </div>
-                <div id="timer" class="text-7xl font-mono font-black mb-10 text-white tracking-widest">20:00</div>
-                <button id="timer-btn" onclick="window.toggleTimer()" class="w-full bg-green-600 py-5 rounded-2xl font-black text-xl shadow-xl btn-active">COMEÇAR</button>
-            </div>
-
-            <!-- Quiz -->
-            <div id="section-quiz" class="hidden text-center card-base p-8">
-                <h3 class="text-xl font-bold mb-4 uppercase text-indigo-400">🧠 Quiz Diário</h3>
-                <div id="quiz-ui">
-                    <p id="q-text" class="text-lg mb-8 font-medium">A carregar pergunta...</p>
-                    <div id="q-options" class="grid gap-3"></div>
-                </div>
-            </div>
-
-            <!-- Loja -->
-            <div id="section-store" class="hidden space-y-4">
-                <h3 class="text-xl font-bold mb-4 text-yellow-500 uppercase">Mercado</h3>
-                <div id="store-list" class="grid gap-3"></div>
-            </div>
-
-            <!-- Mochila -->
-            <div id="section-inventory" class="hidden grid grid-cols-2 gap-4">
-                <!-- Itens carregados via JS -->
-            </div>
-        </main>
-    </div>
-
-    <!-- Menu Lateral -->
-    <div id="sidebar-overlay" class="fixed inset-0 bg-black/80 z-40 hidden" onclick="window.toggleSidebar()"></div>
-    <div id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-slate-900 z-50 transform -translate-x-full transition-transform duration-300 p-8 flex flex-col border-r border-slate-800">
-        <h3 class="text-2xl font-black text-indigo-500 mb-10 italic">MENU</h3>
-        <nav class="flex-1 space-y-2 overflow-y-auto">
-            <button onclick="window.switchTab('tasks')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">⚔️ Missões</button>
-            <button onclick="window.switchTab('habits')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">🔥 Hábitos</button>
-            <button onclick="window.switchTab('foco')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">🧘 Foco</button>
-            <button onclick="window.switchTab('quiz')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">🧠 Quiz</button>
-            <button onclick="window.switchTab('store')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">💰 Loja</button>
-            <button onclick="window.switchTab('inventory')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">🎒 Mochila</button>
-            <hr class="border-slate-800 my-6">
-            <button id="link-btn" onclick="window.openAuth('link')" class="w-full p-4 bg-indigo-600 rounded-xl font-black text-xs">🔗 SALVAR EM NUVEM</button>
-            <button id="login-btn" onclick="window.openAuth('login')" class="w-full p-4 border border-indigo-500/30 text-indigo-400 rounded-xl font-bold text-xs mt-2">🔑 JÁ TENHO CONTA</button>
-            <button id="logout-btn" onclick="window.handleLogout()" class="hidden w-full p-4 bg-red-900/20 text-red-400 rounded-xl font-bold text-xs mt-4">🚪 SAIR DO JOGO</button>
-        </nav>
-    </div>
-
-    <!-- Modal de Autenticação -->
-    <div id="modal-auth" class="modal-overlay hidden">
-        <div class="bg-slate-800 p-8 rounded-3xl border-2 border-indigo-500 w-full max-w-[340px] text-center shadow-2xl">
-            <h3 id="modal-title" class="text-xl font-bold mb-2 uppercase text-indigo-400 font-bold">Vincular Conta</h3>
-            <p id="modal-desc" class="text-xs text-slate-400 mb-6 italic font-bold uppercase">Proteja o seu herói</p>
-            <input type="email" id="auth-email" placeholder="E-mail" class="w-full p-4 bg-slate-900 rounded-xl mb-2 border border-slate-700 text-sm outline-none text-white focus:border-indigo-500">
-            <input type="password" id="auth-pass" placeholder="Senha" class="w-full p-4 bg-slate-900 rounded-xl mb-6 border border-slate-700 text-sm outline-none text-white focus:border-indigo-500">
-            <button id="auth-btn" onclick="window.handleAuth()" class="w-full bg-green-600 py-4 rounded-xl font-black text-white shadow-lg active:scale-95 transition-all">CONFIRMAR</button>
-            <button onclick="window.closeAuth()" class="w-full py-4 text-slate-500 text-xs font-bold mt-2 uppercase tracking-widest">Cancelar</button>
-        </div>
-    </div>
-
-    <script type="module">
-        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signInWithEmailAndPassword, signOut, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, firebaseConfig } = window.firebase;
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = "rpg-task-production-final"; // ID fixo e imutável
-
-        let user = null, stats = {}, tasks = [], habits = [], inventory = {}, timerInterval = null, authMode = 'link';
-
-        const STORE_ITEMS = [
-            { id: 'item_sword', name: 'Gládio de Ferro', price: 100, icon: '⚔️' },
-            { id: 'item_shield', name: 'Escudo de Ouro', price: 300, icon: '🛡️' },
-            { id: 'item_potion', name: 'Elixir de Foco', price: 50, icon: '🧪' }
-        ];
-
-        // --- Sistema de Carregamento Robusto ---
-        const hideLoading = () => {
-            document.getElementById('loading-screen').classList.add('opacity-0');
-            setTimeout(() => {
-                document.getElementById('loading-screen').classList.add('hidden');
-                document.getElementById('app-content').classList.remove('hidden');
-            }, 500);
-        };
-
-        const showLoadingError = (msg) => {
-            document.getElementById('loading-spinner').classList.add('hidden');
-            document.getElementById('loading-text').textContent = "ERRO: " + msg;
-            document.getElementById('loading-text').classList.remove('animate-pulse');
-            document.getElementById('loading-text').classList.add('text-red-500');
-            document.getElementById('retry-btn').classList.remove('hidden');
-        };
-
-        // --- Autenticação ---
-        onAuthStateChanged(auth, (u) => {
-            if (u) {
-                user = u;
-                document.getElementById('hero-email').textContent = u.isAnonymous ? "Sessão Convidado" : u.email;
-                document.getElementById('link-btn').classList.toggle('hidden', !u.isAnonymous);
-                document.getElementById('login-btn').classList.toggle('hidden', !u.isAnonymous);
-                document.getElementById('logout-btn').classList.toggle('hidden', u.isAnonymous);
-                
-                // Iniciar sincronização com tempo limite (timeout) para não travar
-                const syncTimeout = setTimeout(() => {
-                    if (document.getElementById('app-content').classList.contains('hidden')) {
-                        showLoadingError("Tempo de conexão esgotado.");
-                    }
-                }, 10000);
-
-                startSync(() => {
-                    clearTimeout(syncTimeout);
-                    hideLoading();
-                });
-            } else {
-                signInAnonymously(auth).catch(e => showLoadingError(e.message));
-            }
-        });
-
-        window.handleLogout = async () => {
-            if(confirm("Deseja mesmo sair do jogo?")) {
-                try {
-                    await signOut(auth);
-                    location.reload(); 
-                } catch (e) {
-                    alert("Erro ao sair: " + e.message);
-                }
-            }
-        };
-
-        window.handleAuth = async () => {
-            const email = document.getElementById('auth-email').value;
-            const pass = document.getElementById('auth-pass').value;
-            const btn = document.getElementById('auth-btn');
-            if(!email || pass.length < 6) return alert("Email inválido ou senha muito curta.");
-            
-            btn.disabled = true;
-            btn.textContent = "PROCESSANDO...";
-
-            try {
-                if(authMode === 'link') {
-                    const cred = EmailAuthProvider.credential(email, pass);
-                    await linkWithCredential(auth.currentUser, cred);
-                    alert("✅ Conta Vinculada!");
-                } else {
-                    await signInWithEmailAndPassword(auth, email, pass);
-                    alert("👋 Bem-vindo de volta!");
-                }
-                location.reload();
-            } catch (err) {
-                btn.disabled = false;
-                btn.textContent = "CONFIRMAR";
-                if(err.code === 'auth/provider-already-linked' || err.code === 'auth/email-already-in-use') {
-                    alert("Este e-mail já possui uma conta. Use 'JÁ TENHO CONTA'.");
-                    window.closeAuth();
-                } else {
-                    alert("Erro: " + err.message);
-                }
-            }
-        };
-
-        // --- Sincronização Firestore ---
-        function startSync(callback) {
-            let dataLoaded = 0;
-            const checkDone = () => { dataLoaded++; if(dataLoaded >= 2) callback(); };
-
-            // Stats
-            onSnapshot(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), (s) => {
-                stats = s.exists() ? s.data() : { lvl: 1, xp: 0, coins: 0, oil: 0 };
-                updateUI();
-                checkDone();
-            }, (e) => showLoadingError("Erro Stats: " + e.message));
-
-            // Missões
-            onSnapshot(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), (s) => {
-                tasks = s.docs.map(d => ({id: d.id, ...d.data()}));
-                renderTasks();
-                checkDone();
-            }, (e) => showLoadingError("Erro Tarefas: " + e.message));
-
-            // Hábitos (Segundo plano)
-            onSnapshot(collection(db, `artifacts/${appId}/users/${user.uid}/habits`), (s) => {
-                habits = s.docs.map(d => ({id: d.id, ...d.data()}));
-                renderHabits();
-            });
-
-            // Inventário (Segundo plano)
-            onSnapshot(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'inventory'), (s) => {
-                inventory = s.exists() ? s.data() : {};
-                renderInventory();
-            });
-        }
-
-        function updateUI() {
-            document.getElementById('lvl').textContent = stats.lvl || 1;
-            document.getElementById('coins').textContent = stats.coins || 0;
-            document.getElementById('oil').textContent = stats.oil || 0;
-            const xpMax = (stats.lvl || 1) * 100;
-            document.getElementById('xp-bar').style.width = `${((stats.xp || 0) / xpMax) * 100}%`;
-        }
-
-        // --- Lógica do App ---
-        window.addTask = async () => {
-            const name = document.getElementById('t-input').value;
-            const diff = document.getElementById('t-diff').value;
-            if(!name) return;
-            await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), { name, diff, createdAt: Date.now() });
-            document.getElementById('t-input').value = "";
-        };
-
-        function renderTasks() {
-            const list = document.getElementById('t-list');
-            list.innerHTML = tasks.length === 0 ? '<p class="text-center py-6 text-slate-500 italic">Sem missões ativas.</p>' : 
             tasks.map(t => `
                 <div class="card-base p-4 flex justify-between items-center border border-slate-700/50">
                     <div><p class="font-bold text-sm text-white">${t.name}</p><span class="text-[9px] text-indigo-400 uppercase font-black">${t.diff}</span></div>
@@ -727,29 +326,28 @@
         window.checkHabit = async (id) => {
             const h = habits.find(i => i.id === id);
             const today = new Date().setHours(0,0,0,0);
-            if(h.lastCheck >= today) return alert("Hábito já registado hoje!");
+            if(h.lastCheck >= today) return alert("Já registado hoje!");
             await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/habits`, id), { streak: h.streak + 1, lastCheck: Date.now() });
-            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: (stats.coins || 0) + 5 });
+            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: (stats.coins || 0) + 5, xp: (stats.xp || 0) + 5 });
         };
 
         window.toggleTimer = () => {
-            if(timerInterval) { clearInterval(timerInterval); timerInterval = null; document.getElementById('timer').textContent = "20:00"; document.getElementById('timer-btn').textContent = "COMEÇAR"; return; }
+            if(timerInt) { clearInterval(timerInt); timerInt = null; document.getElementById('timer').textContent = "20:00"; document.getElementById('timer-btn').textContent = "COMEÇAR"; return; }
             let s = 20 * 60;
             document.getElementById('timer-btn').textContent = "CANCELAR";
-            timerInterval = setInterval(async () => {
+            timerInt = setInterval(async () => {
                 s--;
                 document.getElementById('timer').textContent = `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
                 if(s <= 0) {
-                    clearInterval(timerInterval);
+                    clearInterval(timerInt); timerInt = null;
                     await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { oil: (stats.oil || 0) + 1 });
-                    alert("Foco concluído! +1 Óleo.");
+                    alert("Fogo alimentado! +1 Óleo.");
                     window.toggleTimer();
                 }
             }, 1000);
         };
 
-        // --- Quiz Diário ---
-        const QUIZ = [{q:"O que ganhas ao concluir missões?", o:["XP e Ouro", "Apenas Óleo", "Nada"], a:0}, {q:"Para que serve o Modo Foco?", o:["Ganhar Ouro", "Ganhar Óleo", "Subir de Nível"], a:1}];
+        const QUIZ = [{q:"O que ganhas ao concluir o Foco?", o:["Óleo", "Ouro", "XP"], a:0}, {q:"Qual a melhor forma de vencer?", o:["Focar", "Desistir", "Dormir"], a:0}];
         window.initQuiz = () => {
             const q = QUIZ[Math.floor(Math.random() * QUIZ.length)];
             document.getElementById('q-text').textContent = q.q;
@@ -758,20 +356,14 @@
             `).join('');
         };
         window.answerQuiz = async (win) => {
-            if(win) { await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: (stats.coins || 0) + 20 }); alert("Correto! +20 Ouro."); }
-            else alert("Errado! Tenta amanhã.");
+            if(win) { await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: (stats.coins || 0) + 30 }); alert("✨ Sabedoria! +30 Ouro."); }
+            else alert("❌ Errado!");
             window.switchTab('tasks');
         };
 
-        // --- Loja e Mochila ---
         function renderStore() {
             const list = document.getElementById('store-list');
-            list.innerHTML = STORE_ITEMS.map(i => `
-                <div class="card-base p-4 flex justify-between items-center">
-                    <span>${i.icon} ${i.name}</span>
-                    <button onclick="window.buyItem('${i.id}', ${i.price})" class="bg-yellow-600 px-4 py-2 rounded-xl font-black text-xs">💰 ${i.price}</button>
-                </div>
-            `).join('');
+            list.innerHTML = STORE_ITEMS.map(i => `<div class="card-base p-4 flex justify-between items-center"><span>${i.icon} ${i.name}</span><button onclick="window.buyItem('${i.id}', ${i.price})" class="bg-yellow-600 px-4 py-2 rounded-xl font-black text-xs">💰 ${i.price}</button></div>`).join('');
         }
         window.buyItem = async (id, p) => {
             if(stats.coins < p) return alert("Ouro insuficiente!");
@@ -782,12 +374,12 @@
             alert("Item comprado!");
         };
         function renderInventory() {
-            const list = document.getElementById('section-inventory');
+            const list = document.getElementById('view-inventory');
             const keys = Object.keys(inventory).filter(k => inventory[k] > 0);
-            list.innerHTML = keys.length === 0 ? '<p class="col-span-2 text-center py-10 opacity-50 uppercase text-xs">Mochila Vazia</p>' : 
+            list.innerHTML = keys.length === 0 ? '<p class="col-span-2 text-center py-10 opacity-30">Vazio</p>' : 
             keys.map(k => {
                 const item = STORE_ITEMS.find(i => i.id === k);
-                return `<div class="card-base p-4 text-center"><div class="text-3xl">${item.icon}</div><p class="text-xs font-bold mt-2 uppercase">${item.name}</p><p class="text-indigo-400 font-bold">x${inventory[k]}</p></div>`;
+                return `<div class="card-base p-4 text-center"><div class="text-3xl">${item.icon}</div><p class="font-bold text-xs mt-2 uppercase">${item.name}</p><p class="text-indigo-400 font-bold">x${inventory[k]}</p></div>`;
             }).join('');
         }
 
@@ -795,626 +387,7 @@
         window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebar-overlay').classList.toggle('hidden'); };
         window.switchTab = (tab) => {
             const tabs = ['tasks', 'habits', 'foco', 'quiz', 'store', 'inventory'];
-            tabs.forEach(t => document.getElementById(`section-${t}`).classList.toggle('hidden', t !== tab));
-            if(tab === 'quiz') window.initQuiz();
-            if(tab === 'store') renderStore();
-            window.toggleSidebar();
-        };
-        window.openAuth = (m) => { authMode = m; document.getElementById('modal-title').textContent = m === 'link' ? "Salvar Herói" : "Retomar Herói"; document.getElementById('modal-auth').classList.remove('hidden'); };
-        window.closeAuth = () => document.getElementById('modal-auth').classList.add('hidden');
-    </script>
-</body>
-</html>
-
-    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 z-[9999]">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
-        <p class="text-indigo-400 font-bold animate-pulse text-xs uppercase tracking-widest">Sincronizando Dados...</p>
-    </div>
-
-    <div id="app-content" class="hidden max-w-2xl mx-auto pb-20">
-        <header class="flex justify-between items-center mb-6">
-            <button onclick="window.toggleSidebar()" class="bg-slate-800 p-3 rounded-xl shadow-lg btn-active">☰ MENU</button>
-            <h1 class="text-2xl font-black text-indigo-400 italic">TASK RPG</h1>
-            <div class="w-10"></div>
-        </header>
-
-        <!-- Painel do Herói -->
-        <div class="card-base p-6 mb-8 relative overflow-hidden shadow-2xl">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
-            <div class="flex flex-col items-center mb-6">
-                <div class="text-6xl mb-3 bg-indigo-500/10 p-5 rounded-full border border-indigo-500/20">🧑‍🚀</div>
-                <h2 id="hero-name" class="text-2xl font-bold">Herói</h2>
-                <p id="hero-email" class="text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-widest"></p>
-            </div>
-            
-            <div class="grid grid-cols-3 gap-3 mb-6">
-                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
-                    <span class="text-[10px] uppercase text-indigo-400 font-black">Nível</span>
-                    <div id="lvl" class="text-2xl font-black">1</div>
-                </div>
-                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
-                    <span class="text-[10px] uppercase text-yellow-500 font-black">Ouro</span>
-                    <div id="coins" class="text-2xl font-black text-yellow-500">0</div>
-                </div>
-                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
-                    <span class="text-[10px] uppercase text-orange-500 font-black">Óleo</span>
-                    <div id="oil" class="text-2xl font-black text-orange-500">0</div>
-                </div>
-            </div>
-
-            <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
-                <div id="xp-bar" class="xp-bar bg-indigo-500 h-full w-0"></div>
-            </div>
-        </div>
-
-        <!-- Seções -->
-        <div id="section-tasks" class="space-y-4">
-            <div class="card-base p-5 shadow-xl">
-                <h3 class="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider">Nova Missão</h3>
-                <input type="text" id="t-input" placeholder="O que vais conquistar?" class="w-full bg-slate-900 p-4 rounded-xl mb-3 outline-none border border-slate-700 text-white">
-                <div class="flex gap-2">
-                    <select id="t-diff" class="bg-slate-800 p-4 rounded-xl flex-1 text-sm font-bold text-indigo-300">
-                        <option value="easy">Fácil</option>
-                        <option value="medium">Média</option>
-                        <option value="hard">Difícil</option>
-                    </select>
-                    <button onclick="window.addTask()" class="bg-indigo-600 px-8 rounded-xl font-black shadow-lg btn-active">ADD</button>
-                </div>
-            </div>
-            <div id="t-list" class="space-y-3"></div>
-        </div>
-
-        <!-- Outras seções como Foco, Habits, etc (estão no JS abaixo) -->
-        <div id="section-foco" class="hidden text-center card-base p-10">
-            <h3 class="text-xl font-bold mb-8 uppercase text-indigo-400">Fogueira de Foco</h3>
-            <div id="timer" class="text-7xl font-mono font-black mb-10 text-white">20:00</div>
-            <button id="timer-btn" onclick="window.toggleTimer()" class="w-full bg-green-600 py-5 rounded-2xl font-black text-xl shadow-xl btn-active">COMEÇAR</button>
-        </div>
-    </div>
-
-    <!-- Menu Lateral -->
-    <div id="sidebar-overlay" class="fixed inset-0 bg-black/80 z-40 hidden" onclick="window.toggleSidebar()"></div>
-    <div id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-slate-900 z-50 transform -translate-x-full transition-transform duration-300 p-8 flex flex-col border-r border-slate-800">
-        <h3 class="text-2xl font-black text-indigo-500 mb-10 italic">MENU</h3>
-        <nav class="flex-1 space-y-2">
-            <button onclick="window.switchTab('tasks')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">⚔️ Missões</button>
-            <button onclick="window.switchTab('foco')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">🧘 Foco</button>
-            <hr class="border-slate-800 my-6">
-            <button id="link-btn" onclick="window.openAuth('link')" class="w-full p-4 bg-indigo-600 rounded-xl font-black text-xs">🔗 SALVAR EM NUVEM</button>
-            <button id="login-btn" onclick="window.openAuth('login')" class="w-full p-4 border border-indigo-500/30 text-indigo-400 rounded-xl font-bold text-xs mt-2">🔑 JÁ TENHO CONTA</button>
-            <button id="logout-btn" onclick="window.handleLogout()" class="hidden w-full p-4 bg-red-900/20 text-red-400 rounded-xl font-bold text-xs mt-4">🚪 SAIR</button>
-        </nav>
-    </div>
-
-    <!-- Modal Auth -->
-    <div id="modal-auth" class="modal-overlay hidden">
-        <div class="bg-slate-800 p-8 rounded-3xl border-2 border-indigo-500 w-full max-w-[340px] text-center shadow-2xl">
-            <h3 id="modal-title" class="text-xl font-bold mb-2 uppercase text-indigo-400">Vincular Conta</h3>
-            <p id="modal-desc" class="text-xs text-slate-400 mb-6 italic">Guarde o seu herói para sempre.</p>
-            <input type="email" id="auth-email" placeholder="E-mail" class="w-full p-4 bg-slate-900 rounded-xl mb-2 border border-slate-700 outline-none text-white">
-            <input type="password" id="auth-pass" placeholder="Senha" class="w-full p-4 bg-slate-900 rounded-xl mb-6 border border-slate-700 outline-none text-white">
-            <button id="auth-btn" onclick="window.handleAuth()" class="w-full bg-green-600 py-4 rounded-xl font-black text-white shadow-lg btn-active">CONFIRMAR</button>
-            <button onclick="window.closeAuth()" class="w-full py-4 text-slate-500 text-xs font-bold mt-2 uppercase tracking-widest">Cancelar</button>
-        </div>
-    </div>
-
-    <script type="module">
-        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signInWithEmailAndPassword, signOut, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, firebaseConfig } = window.firebase;
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        
-        // ESTE ID É O SEU "ENDEREÇO" FIXO. NÃO MUDE ISTO PARA NÃO PERDER DADOS.
-        const appId = "task-rpg-production-final"; 
-
-        let user = null, stats = {}, tasks = [], timer = null, authMode = 'link';
-
-        // --- Autenticação ---
-        onAuthStateChanged(auth, (u) => {
-            if (u) {
-                user = u;
-                document.getElementById('app-content').classList.remove('hidden');
-                document.getElementById('loading-screen').classList.add('hidden');
-                document.getElementById('hero-email').textContent = u.isAnonymous ? "Sessão Convidado" : u.email;
-                
-                document.getElementById('link-btn').classList.toggle('hidden', !u.isAnonymous);
-                document.getElementById('login-btn').classList.toggle('hidden', !u.isAnonymous);
-                document.getElementById('logout-btn').classList.toggle('hidden', u.isAnonymous);
-                
-                startSync();
-            } else {
-                signInAnonymously(auth);
-            }
-        });
-
-        window.handleLogout = async () => {
-            if(confirm("Deseja mesmo sair?")) {
-                await signOut(auth);
-                location.reload();
-            }
-        };
-
-        window.handleAuth = async () => {
-            const email = document.getElementById('auth-email').value;
-            const pass = document.getElementById('auth-pass').value;
-            const btn = document.getElementById('auth-btn');
-            if(!email || pass.length < 6) return alert("Email inválido ou senha muito curta.");
-            
-            btn.disabled = true;
-            btn.textContent = "PROCESSANDO...";
-
-            try {
-                if(authMode === 'link') {
-                    const cred = EmailAuthProvider.credential(email, pass);
-                    await linkWithCredential(auth.currentUser, cred);
-                    alert("✅ Conta Vinculada! O seu progresso está seguro.");
-                } else {
-                    await signInWithEmailAndPassword(auth, email, pass);
-                    alert("👋 Bem-vindo de volta!");
-                }
-                location.reload();
-            } catch (err) {
-                btn.disabled = false;
-                btn.textContent = "CONFIRMAR";
-                if(err.code === 'auth/provider-already-linked' || err.code === 'auth/email-already-in-use') {
-                    alert("Este e-mail já tem uma conta. Use a opção 'JÁ TENHO CONTA'.");
-                    window.closeAuth();
-                } else {
-                    alert("Erro: " + err.message);
-                }
-            }
-        };
-
-        // --- Sincronização ---
-        function startSync() {
-            // Sincronizar Estatísticas
-            onSnapshot(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), (s) => {
-                if(s.exists()) {
-                    stats = s.data();
-                } else {
-                    // Se não existir, criamos os dados iniciais
-                    stats = { lvl: 1, xp: 0, coins: 0, oil: 0 };
-                    setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), stats);
-                }
-                updateUI();
-            });
-
-            // Sincronizar Missões
-            onSnapshot(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), (s) => {
-                tasks = s.docs.map(d => ({id: d.id, ...d.data()}));
-                renderTasks();
-            });
-        }
-
-        function updateUI() {
-            document.getElementById('lvl').textContent = stats.lvl || 1;
-            document.getElementById('coins').textContent = stats.coins || 0;
-            document.getElementById('oil').textContent = stats.oil || 0;
-            const xpMax = (stats.lvl || 1) * 100;
-            document.getElementById('xp-bar').style.width = `${((stats.xp || 0) / xpMax) * 100}%`;
-        }
-
-        window.addTask = async () => {
-            const name = document.getElementById('t-input').value;
-            const diff = document.getElementById('t-diff').value;
-            if(!name) return;
-            await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), { name, diff, createdAt: Date.now() });
-            document.getElementById('t-input').value = "";
-        };
-
-        function renderTasks() {
-            const list = document.getElementById('t-list');
-            list.innerHTML = tasks.length === 0 ? '<p class="text-center py-6 text-slate-500 italic">Sem missões.</p>' : 
-            tasks.map(t => `
-                <div class="bg-slate-800/50 p-4 rounded-2xl flex justify-between items-center border border-slate-700/50">
-                    <div><p class="font-bold text-sm">${t.name}</p><span class="text-[9px] text-indigo-400 uppercase font-black tracking-widest">${t.diff}</span></div>
-                    <button onclick="window.completeTask('${t.id}', '${t.diff}')" class="bg-indigo-600 px-5 py-2 rounded-xl font-black text-xs active:bg-indigo-500">FEITO</button>
-                </div>
-            `).join('');
-        }
-
-        window.completeTask = async (id, diff) => {
-            const gain = diff === 'easy' ? 10 : (diff === 'medium' ? 25 : 50);
-            let nxp = (stats.xp || 0) + gain;
-            let nlvl = (stats.lvl || 1);
-            if(nxp >= nlvl * 100) { nxp = 0; nlvl++; }
-            await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { ...stats, xp: nxp, lvl: nlvl, coins: (stats.coins || 0) + Math.floor(gain/2) });
-            await deleteDoc(doc(db, `artifacts/${appId}/users/${user.uid}/tasks`, id));
-        };
-
-        window.toggleTimer = () => {
-            if(timer) { clearInterval(timer); timer = null; document.getElementById('timer').textContent = "20:00"; document.getElementById('timer-btn').textContent = "COMEÇAR"; return; }
-            let s = 20 * 60;
-            document.getElementById('timer-btn').textContent = "CANCELAR";
-            timer = setInterval(async () => {
-                s--;
-                document.getElementById('timer').textContent = `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
-                if(s <= 0) {
-                    clearInterval(timer);
-                    await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { oil: (stats.oil || 0) + 1 });
-                    alert("Fogo alimentado! +1 Óleo.");
-                    window.toggleTimer();
-                }
-            }, 1000);
-        };
-
-        window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebar-overlay').classList.toggle('hidden'); };
-        window.switchTab = (t) => { document.getElementById('section-tasks').classList.toggle('hidden', t !== 'tasks'); document.getElementById('section-foco').classList.toggle('hidden', t !== 'foco'); window.toggleSidebar(); };
-        window.openAuth = (m) => { authMode = m; document.getElementById('modal-title').textContent = m === 'link' ? "Salvar Herói" : "Retomar Herói"; document.getElementById('modal-auth').classList.remove('hidden'); };
-        window.closeAuth = () => document.getElementById('modal-auth').classList.add('hidden');
-    </script>
-</body>
-</html>
-
-
-    <!-- Loading -->
-    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 z-[9999]">
-        <div class="animate-spin rounded-full h-14 w-14 border-t-4 border-indigo-500 mb-4"></div>
-        <p class="text-indigo-400 font-black animate-pulse text-xs tracking-[0.3em] uppercase">Sincronizando Reino</p>
-    </div>
-
-    <div id="app-content" class="hidden max-w-2xl mx-auto pb-24">
-        <header class="flex justify-between items-center mb-8">
-            <button onclick="window.toggleSidebar()" class="bg-slate-800 p-3 rounded-2xl shadow-lg border border-slate-700 btn-tap">☰ MENU</button>
-            <h1 class="text-2xl font-black text-indigo-400 italic tracking-tighter">TASK RPG</h1>
-            <div class="w-10"></div>
-        </header>
-
-        <!-- Status do Herói -->
-        <div class="card-base p-6 mb-8 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-600 via-purple-500 to-indigo-600 animate-gradient"></div>
-            <div class="flex flex-col items-center mb-6">
-                <div class="text-6xl mb-3 bg-indigo-500/10 p-5 rounded-full border-2 border-indigo-500/30 shadow-inner">🧑‍🚀</div>
-                <h2 id="hero-name" class="text-2xl font-black text-white">Herói</h2>
-                <p id="hero-email" class="text-[10px] text-slate-500 font-mono uppercase tracking-widest mt-1"></p>
-            </div>
-            
-            <div class="grid grid-cols-3 gap-3 mb-6">
-                <div class="bg-slate-900/60 p-3 rounded-2xl text-center border border-slate-700/50">
-                    <span class="text-[9px] uppercase text-indigo-400 font-black block mb-1">Nível</span>
-                    <div id="lvl" class="text-2xl font-black">1</div>
-                </div>
-                <div class="bg-slate-900/60 p-3 rounded-2xl text-center border border-slate-700/50">
-                    <span class="text-[9px] uppercase text-yellow-500 font-black block mb-1">Ouro</span>
-                    <div id="coins" class="text-2xl font-black text-yellow-500">0</div>
-                </div>
-                <div class="bg-slate-900/60 p-3 rounded-2xl text-center border border-slate-700/50">
-                    <span class="text-[9px] uppercase text-orange-500 font-black block mb-1">Óleo</span>
-                    <div id="oil" class="text-2xl font-black text-orange-500">0</div>
-                </div>
-            </div>
-
-            <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700">
-                <div id="xp-bar" class="xp-bar bg-gradient-to-r from-indigo-600 to-indigo-400 h-full w-0"></div>
-            </div>
-        </div>
-
-        <!-- Conteúdo das Abas -->
-        <main>
-            <div id="section-tasks" class="space-y-4">
-                <div class="card-base p-5 shadow-xl border-t-4 border-indigo-500">
-                    <h3 class="text-xs font-black text-slate-500 mb-4 uppercase tracking-widest">Nova Missão</h3>
-                    <input type="text" id="t-input" placeholder="O que vais realizar?" class="w-full bg-slate-900 p-4 rounded-xl mb-4 outline-none border border-slate-700 focus:border-indigo-500 transition-all text-white">
-                    <div class="flex gap-3">
-                        <select id="t-diff" class="bg-slate-800 p-4 rounded-xl flex-1 text-sm font-bold text-indigo-300 border border-slate-700">
-                            <option value="easy">Fácil (+10 XP)</option>
-                            <option value="medium">Média (+25 XP)</option>
-                            <option value="hard">Difícil (+50 XP)</option>
-                        </select>
-                        <button onclick="window.addTask()" class="bg-indigo-600 px-8 rounded-xl font-black shadow-lg shadow-indigo-900/20 btn-tap">ADD</button>
-                    </div>
-                </div>
-                <div id="t-list" class="space-y-3"></div>
-            </div>
-
-            <div id="section-habits" class="hidden space-y-4">
-                <div class="card-base p-5 border-t-4 border-orange-500">
-                    <h3 class="text-xs font-black text-slate-500 mb-4 uppercase tracking-widest">Novo Hábito</h3>
-                    <div class="flex gap-3">
-                        <input type="text" id="h-input" placeholder="Ex: Treinar, Ler..." class="flex-1 bg-slate-900 p-4 rounded-xl border border-slate-700 outline-none text-white">
-                        <button onclick="window.addHabit()" class="bg-orange-600 px-8 rounded-xl font-black btn-tap">CRIAR</button>
-                    </div>
-                </div>
-                <div id="h-list" class="space-y-3"></div>
-            </div>
-
-            <div id="section-foco" class="hidden text-center card-base p-10">
-                <h3 class="text-xl font-black mb-10 uppercase tracking-widest text-indigo-400 italic">Fogueira de Foco</h3>
-                <div class="w-36 h-36 mx-auto mb-10 flame-anim">
-                    <svg viewBox="0 0 100 100" class="w-full h-full">
-                        <path d="M50 95 Q 25 75 50 10 Q 75 75 50 95" fill="#f97316" opacity="0.9"/>
-                        <path d="M50 85 Q 35 70 50 30 Q 65 70 50 85" fill="#fbbf24"/>
-                        <rect x="30" y="90" width="40" height="5" rx="2" fill="#4a2111"/>
-                    </svg>
-                </div>
-                <div id="timer" class="text-7xl font-mono font-black mb-10 text-white tracking-widest">20:00</div>
-                <button id="timer-btn" onclick="window.toggleTimer()" class="w-full bg-green-600 py-5 rounded-2xl font-black text-xl shadow-xl btn-tap">COMEÇAR SESSÃO</button>
-            </div>
-
-            <div id="section-quiz" class="hidden text-center card-base p-8">
-                <h3 class="text-xl font-black mb-6 uppercase text-indigo-400">🧠 Desafio Diário</h3>
-                <div id="quiz-ui">
-                    <p id="q-text" class="text-lg mb-8 font-bold leading-relaxed">A carregar pergunta...</p>
-                    <div id="q-options" class="grid gap-3"></div>
-                </div>
-            </div>
-
-            <div id="section-store" class="hidden space-y-4">
-                <h3 class="text-xl font-black mb-6 text-yellow-500 uppercase tracking-widest">Mercado Lendário</h3>
-                <div id="store-list" class="grid gap-4"></div>
-            </div>
-
-            <div id="section-inventory" class="hidden">
-                <h3 class="text-xl font-black mb-6 text-emerald-400 uppercase tracking-widest">Tua Mochila</h3>
-                <div id="inv-list" class="grid grid-cols-2 gap-4"></div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Sidebar -->
-    <div id="sidebar-overlay" class="fixed inset-0 bg-black/85 z-40 hidden" onclick="window.toggleSidebar()"></div>
-    <div id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-slate-950 z-50 transform -translate-x-full transition-transform duration-300 p-8 flex flex-col border-r border-slate-800">
-        <h3 class="text-2xl font-black text-indigo-500 mb-12 italic tracking-tighter">TASK RPG</h3>
-        <nav class="flex-1 space-y-2 overflow-y-auto pr-2">
-            <button onclick="window.switchTab('tasks')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold transition-all flex items-center gap-3">⚔️ Missões</button>
-            <button onclick="window.switchTab('habits')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold transition-all flex items-center gap-3">🔥 Hábitos</button>
-            <button onclick="window.switchTab('foco')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold transition-all flex items-center gap-3">🧘 Foco</button>
-            <button onclick="window.switchTab('quiz')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold transition-all flex items-center gap-3">🧠 Quiz</button>
-            <button onclick="window.switchTab('store')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold transition-all flex items-center gap-3">💰 Loja</button>
-            <button onclick="window.switchTab('inventory')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold transition-all flex items-center gap-3">🎒 Mochila</button>
-            <hr class="border-slate-800 my-8">
-            <button id="link-btn" onclick="window.openAuth('link')" class="w-full p-4 bg-indigo-600 rounded-xl font-black text-xs shadow-lg shadow-indigo-900/20">🔗 SALVAR EM NUVEM</button>
-            <button id="login-btn" onclick="window.openAuth('login')" class="w-full p-4 border border-indigo-500/30 text-indigo-400 rounded-xl font-bold text-xs mt-2">🔑 ENTRAR NA CONTA</button>
-            <button id="logout-btn" onclick="window.handleLogout()" class="hidden w-full p-4 bg-red-900/20 text-red-400 rounded-xl font-bold text-xs mt-4 border border-red-900/30">🚪 SAIR DO JOGO</button>
-        </nav>
-    </div>
-
-    <!-- Modais de Autenticação -->
-    <div id="modal-auth" class="modal-overlay hidden">
-        <div class="bg-slate-900 p-8 rounded-[2.5rem] border-2 border-indigo-500 w-full max-w-[350px] text-center shadow-2xl">
-            <h3 id="modal-title" class="text-xl font-black mb-2 uppercase text-indigo-400">Vincular Conta</h3>
-            <p id="modal-desc" class="text-xs text-slate-500 mb-8 uppercase tracking-widest font-bold">Guarde o seu progresso</p>
-            <input type="email" id="auth-email" placeholder="E-mail" class="w-full p-4 bg-slate-800 rounded-2xl mb-3 border border-slate-700 text-sm outline-none text-white focus:border-indigo-500">
-            <input type="password" id="auth-pass" placeholder="Senha" class="w-full p-4 bg-slate-800 rounded-2xl mb-8 border border-slate-700 text-sm outline-none text-white focus:border-indigo-500">
-            <button id="auth-btn" onclick="window.handleAuth()" class="w-full bg-green-600 py-5 rounded-2xl font-black text-white shadow-xl btn-tap uppercase tracking-widest">Confirmar</button>
-            <button onclick="window.closeAuth()" class="w-full py-4 text-slate-600 text-[10px] font-black mt-4 uppercase tracking-[0.2em]">Cancelar</button>
-        </div>
-    </div>
-
-    <script type="module">
-        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signInWithEmailAndPassword, signOut, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, firebaseConfig } = window.firebase;
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = "rpg-task-v5"; 
-
-        let user = null, stats = {}, tasks = [], habits = [], inventory = {}, focusTimer = null, authMode = 'link';
-
-        const STORE_ITEMS = [
-            { id: 'sword_1', name: 'Gládio de Ferro', price: 150, icon: '⚔️', desc: 'Aumenta o dano contra a preguiça.' },
-            { id: 'shield_1', name: 'Escudo Real', price: 400, icon: '🛡️', desc: 'Protege contra notificações inúteis.' },
-            { id: 'potion_1', name: 'Elixir de Foco', price: 60, icon: '🧪', desc: 'Recupera a concentração.' }
-        ];
-
-        // --- Autenticação ---
-        onAuthStateChanged(auth, (u) => {
-            if (u) {
-                user = u;
-                document.getElementById('app-content').classList.remove('hidden');
-                document.getElementById('loading-screen').classList.add('hidden');
-                document.getElementById('hero-email').textContent = u.isAnonymous ? "Perfil Local" : u.email;
-                document.getElementById('link-btn').classList.toggle('hidden', !u.isAnonymous);
-                document.getElementById('login-btn').classList.toggle('hidden', !u.isAnonymous);
-                document.getElementById('logout-btn').classList.toggle('hidden', u.isAnonymous);
-                startSync();
-            } else {
-                signInAnonymously(auth).catch(e => alert("Erro ao ligar: " + e.message));
-            }
-        });
-
-        window.handleLogout = async () => {
-            if(confirm("Deseja mesmo encerrar a sessão?")) {
-                await signOut(auth);
-                location.reload();
-            }
-        };
-
-        window.handleAuth = async () => {
-            const email = document.getElementById('auth-email').value;
-            const pass = document.getElementById('auth-pass').value;
-            const btn = document.getElementById('auth-btn');
-            if(!email || pass.length < 6) return alert("Dados inválidos.");
-            
-            btn.disabled = true;
-            btn.textContent = "PROCESSANDO...";
-
-            try {
-                if(authMode === 'link') {
-                    const cred = EmailAuthProvider.credential(email, pass);
-                    await linkWithCredential(auth.currentUser, cred);
-                    alert("✅ Herói vinculado com sucesso!");
-                } else {
-                    await signInWithEmailAndPassword(auth, email, pass);
-                    alert("👋 Bem-vindo de volta, Herói!");
-                }
-                location.reload();
-            } catch (err) {
-                btn.disabled = false;
-                btn.textContent = "CONFIRMAR";
-                if(err.code === 'auth/provider-already-linked') {
-                    alert("Este e-mail já está em uso ou vinculado. Tente fazer Login.");
-                    window.closeAuth();
-                } else {
-                    alert("Erro: " + err.message);
-                }
-            }
-        };
-
-        // --- Sincronização ---
-        function startSync() {
-            onSnapshot(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), (s) => {
-                stats = s.exists() ? s.data() : { lvl: 1, xp: 0, coins: 0, oil: 0 };
-                updateUI();
-            });
-            onSnapshot(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), (s) => {
-                tasks = s.docs.map(d => ({id: d.id, ...d.data()}));
-                renderTasks();
-            });
-            onSnapshot(collection(db, `artifacts/${appId}/users/${user.uid}/habits`), (s) => {
-                habits = s.docs.map(d => ({id: d.id, ...d.data()}));
-                renderHabits();
-            });
-            onSnapshot(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'inventory'), (s) => {
-                inventory = s.exists() ? s.data() : {};
-                renderInventory();
-            });
-        }
-
-        function updateUI() {
-            document.getElementById('lvl').textContent = stats.lvl || 1;
-            document.getElementById('coins').textContent = stats.coins || 0;
-            document.getElementById('oil').textContent = stats.oil || 0;
-            const xpMax = (stats.lvl || 1) * 100;
-            document.getElementById('xp-bar').style.width = `${((stats.xp || 0) / xpMax) * 100}%`;
-        }
-
-        // --- Lógica de Missões ---
-        window.addTask = async () => {
-            const name = document.getElementById('t-input').value;
-            const diff = document.getElementById('t-diff').value;
-            if(!name) return;
-            await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), { name, diff, createdAt: Date.now() });
-            document.getElementById('t-input').value = "";
-        };
-
-        function renderTasks() {
-            const list = document.getElementById('t-list');
-            list.innerHTML = tasks.length === 0 ? '<p class="text-center py-10 text-slate-600 font-bold uppercase text-[10px] tracking-widest">Sem missões pendentes</p>' : 
-            tasks.sort((a,b) => b.createdAt - a.createdAt).map(t => `
-                <div class="card-base p-5 flex justify-between items-center border border-slate-700/50 shadow-inner">
-                    <div><p class="font-bold text-white mb-1">${t.name}</p><span class="text-[9px] text-indigo-400 uppercase font-black tracking-[0.2em]">${t.diff}</span></div>
-                    <div class="flex gap-2">
-                        <button onclick="window.completeTask('${t.id}', '${t.diff}')" class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 px-6 py-2 rounded-xl font-black text-[10px] active:bg-indigo-600 active:text-white btn-tap">FEITO</button>
-                        <button onclick="window.deleteTask('${t.id}')" class="text-slate-600 px-2">✕</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        window.completeTask = async (id, diff) => {
-            const gain = diff === 'easy' ? 10 : (diff === 'medium' ? 25 : 50);
-            let nxp = (stats.xp || 0) + gain;
-            let nlvl = (stats.lvl || 1);
-            if(nxp >= nlvl * 100) { nxp = 0; nlvl++; }
-            await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { ...stats, xp: nxp, lvl: nlvl, coins: (stats.coins || 0) + Math.floor(gain/2) });
-            await deleteDoc(doc(db, `artifacts/${appId}/users/${user.uid}/tasks`, id));
-        };
-        window.deleteTask = async (id) => await deleteDoc(doc(db, `artifacts/${appId}/users/${user.uid}/tasks`, id));
-
-        // --- Hábitos ---
-        window.addHabit = async () => {
-            const name = document.getElementById('h-input').value;
-            if(!name) return;
-            await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/habits`), { name, streak: 0, lastCheck: 0 });
-            document.getElementById('h-input').value = "";
-        };
-
-        function renderHabits() {
-            const list = document.getElementById('h-list');
-            list.innerHTML = habits.map(h => `
-                <div class="card-base p-5 flex justify-between items-center">
-                    <div><p class="font-bold text-white mb-1">${h.name}</p><span class="text-[10px] text-orange-400 font-black uppercase tracking-widest">🔥 Streak: ${h.streak}</span></div>
-                    <button onclick="window.checkHabit('${h.id}')" class="bg-orange-600 px-6 py-3 rounded-2xl font-black text-[10px] active:scale-90 transition-all">CHECK</button>
-                </div>
-            `).join('');
-        }
-
-        window.checkHabit = async (id) => {
-            const h = habits.find(i => i.id === id);
-            const today = new Date().setHours(0,0,0,0);
-            if(h.lastCheck >= today) return alert("Hábito já registado hoje!");
-            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/habits`, id), { streak: h.streak + 1, lastCheck: Date.now() });
-            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: (stats.coins || 0) + 5, xp: (stats.xp || 0) + 5 });
-        };
-
-        // --- Foco ---
-        window.toggleTimer = () => {
-            if(focusTimer) { clearInterval(focusTimer); focusTimer = null; document.getElementById('timer').textContent = "20:00"; document.getElementById('timer-btn').textContent = "COMEÇAR SESSÃO"; document.getElementById('timer-btn').classList.replace('bg-red-600', 'bg-green-600'); return; }
-            let s = 20 * 60;
-            document.getElementById('timer-btn').textContent = "CANCELAR";
-            document.getElementById('timer-btn').classList.replace('bg-green-600', 'bg-red-600');
-            focusTimer = setInterval(async () => {
-                s--;
-                document.getElementById('timer').textContent = `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
-                if(s <= 0) {
-                    clearInterval(focusTimer); focusTimer = null;
-                    await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { oil: (stats.oil || 0) + 1 });
-                    alert("✨ Concentração Imbatível! Ganhaste 1 Frasco de Óleo.");
-                    window.toggleTimer();
-                }
-            }, 1000);
-        };
-
-        // --- Quiz Diário ---
-        const QUIZ_LIST = [
-            { q: "Qual o melhor hábito para a saúde?", o: ["Beber água", "Redes Sociais", "Ficar parado"], a: 0 },
-            { q: "O que ganhas ao concluir o Foco?", o: ["Moedas", "XP", "Óleo"], a: 2 },
-            { q: "Qual a melhor técnica de estudo?", o: ["Ler e reler", "Prática ativa", "Dormir na aula"], a: 1 }
-        ];
-
-        window.initQuiz = () => {
-            const q = QUIZ_LIST[Math.floor(Math.random() * QUIZ_LIST.length)];
-            document.getElementById('q-text').textContent = q.q;
-            document.getElementById('q-options').innerHTML = q.o.map((o, i) => `
-                <button onclick="window.answerQuiz(${i === q.a})" class="bg-slate-800 p-5 rounded-3xl hover:bg-indigo-950 border border-slate-700 font-black transition-colors btn-tap text-sm">${o}</button>
-            `).join('');
-        };
-
-        window.answerQuiz = async (win) => {
-            if(win) {
-                await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: (stats.coins || 0) + 30 });
-                alert("✨ Sabedoria lendária! Ganhaste 30 Moedas.");
-            } else alert("❌ Resposta errada! Tenta de novo amanhã.");
-            window.switchTab('tasks');
-        };
-
-        // --- Loja e Inventário ---
-        function renderStore() {
-            const list = document.getElementById('store-list');
-            list.innerHTML = STORE_ITEMS.map(i => `
-                <div class="card-base p-5 flex justify-between items-center shadow-xl">
-                    <div class="flex items-center gap-5"><div class="text-4xl p-3 bg-slate-900 rounded-2xl">${i.icon}</div><div><p class="font-bold text-white">${i.name}</p><p class="text-[10px] text-slate-500 font-bold uppercase mt-1">${i.desc}</p></div></div>
-                    <button onclick="window.buyItem('${i.id}', ${i.price})" class="bg-yellow-600 text-slate-950 font-black px-6 py-3 rounded-2xl text-xs active:scale-95 transition-all">💰 ${i.price}</button>
-                </div>
-            `).join('');
-        }
-
-        window.buyItem = async (id, price) => {
-            if(stats.coins < price) return alert("Ouro insuficiente no tesouro!");
-            const newInv = { ...inventory };
-            newInv[id] = (newInv[id] || 0) + 1;
-            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: stats.coins - price });
-            await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'inventory'), newInv);
-            alert("🛒 Item adquirido e guardado na mochila!");
-        };
-
-        function renderInventory() {
-            const list = document.getElementById('inv-list');
-            const keys = Object.keys(inventory).filter(k => inventory[k] > 0);
-            list.innerHTML = keys.length === 0 ? '<div class="col-span-2 text-center py-20 opacity-30 font-black uppercase tracking-[0.3em] text-[10px]">Mochila Vazia</div>' : 
-            keys.map(k => {
-                const item = STORE_ITEMS.find(i => i.id === k);
-                return `<div class="card-base p-6 text-center border-indigo-500/20"><div class="text-5xl mb-4 p-2 bg-slate-900 rounded-2xl inline-block">${item.icon}</div><p class="font-black text-[10px] uppercase tracking-widest text-white mb-1">${item.name}</p><p class="text-indigo-400 font-black text-xs">x${inventory[k]}</p></div>`;
-            }).join('');
-        }
-
-        // --- Interface Geral ---
-        window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebar-overlay').classList.toggle('hidden'); };
-        window.switchTab = (tab) => {
-            const tabs = ['tasks', 'habits', 'foco', 'quiz', 'store', 'inventory'];
-            tabs.forEach(t => document.getElementById(`section-${t}`).classList.toggle('hidden', t !== tab));
+            tabs.forEach(t => document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab));
             if(tab === 'quiz') window.initQuiz();
             if(tab === 'store') renderStore();
             window.toggleSidebar();
