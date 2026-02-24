@@ -3,225 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task RPG - Versão Completa</title>
+    <title>Task RPG - Final</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, linkWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // --- COLOQUE AS SUAS CHAVES DO FIREBASE AQUI ---
+        // --- COLOQUE AS SUAS CHAVES AQUI ---
         const firebaseConfig = {
             apiKey: "AIzaSyDGVTkVOvS9-y6TpIT1njjfYM6QhR_qZng",
   authDomain: "rpg-task-ffa2b.firebaseapp.com",
   projectId: "rpg-task-ffa2b",
   storageBucket: "rpg-task-ffa2b.firebasestorage.app",
   messagingSenderId: "954731298180",
-  appId: "1:954731298180:web:51b57b46042c1ad64ab1d1"
+  appId: "1:954731298180:web:f318b5d794be18c14ab1d1"
         };
-        // ---------------------------------------------
+        // ----------------------------------
 
-        window.firebase = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, linkWithCredential, EmailAuthProvider, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, writeBatch, firebaseConfig };
+        window.firebase = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, writeBatch, firebaseConfig };
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #111827; color: #f9fafb; }
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
         .xp-bar { height: 10px; transition: width 0.5s ease-in-out; }
-        .card-base { background-color: #1f2937; border: 1px solid #374151; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: transform 0.2s; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
-        .modal-content { background: #1f2937; padding: 2rem; border-radius: 1rem; border: 2px solid #4f46e5; width: 90%; max-width: 400px; text-align: center; }
-        .flame-anim { animation: dance 2s infinite; transform-origin: 50% 100%; }
-        @keyframes dance { 0%, 100% { transform: scale(1) rotate(-1deg); } 50% { transform: scale(1.1) rotate(1deg); } }
-        .notification-dot { position: absolute; top: 0; right: 0; width: 10px; height: 10px; background: #f59e0b; border-radius: 50%; border: 2px solid #1f2937; }
+        .card-base { background-color: #1e293b; border: 1px solid #334155; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .flame-anim { animation: flameMove 2s infinite alternate; transform-origin: center bottom; }
+        @keyframes flameMove { from { transform: scale(1) rotate(-2deg); } to { transform: scale(1.1) rotate(2deg); } }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <div id="app-content" class="hidden">
-        <div class="max-w-2xl mx-auto">
-            <header class="flex justify-between items-center mb-6">
-                <button onclick="window.toggleSidebar()" class="text-white p-2 bg-gray-800 rounded-lg shadow-lg">☰ Menu</button>
-                <h1 class="text-2xl font-extrabold text-indigo-400 tracking-tighter">TASK RPG</h1>
-                <div class="w-10"></div>
-            </header>
+    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-slate-900 z-[9999]">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-indigo-500 mb-4"></div>
+        <p class="text-indigo-400 font-bold animate-pulse">A CONECTAR AO REINO...</p>
+    </div>
 
-            <!-- Painel de Status -->
-            <div class="card-base p-6 rounded-2xl mb-8 relative">
-                <div id="hero-header" class="flex flex-col items-center mb-6 border-b border-gray-700 pb-4">
-                    <div id="hero-avatar" class="text-6xl mb-3 bg-indigo-900/30 p-5 rounded-full border-2 border-indigo-500 shadow-inner">🧑‍💻</div>
-                    <h2 id="hero-name" class="text-2xl font-bold text-white">Carregando...</h2>
-                    <p id="hero-email" class="text-xs text-gray-400 font-mono"></p>
-                </div>
-                
-                <div class="grid grid-cols-3 gap-3 text-center mb-6">
-                    <div class="bg-gray-800/80 p-3 rounded-xl border border-gray-700">
-                        <span class="text-xs uppercase text-indigo-400 font-bold block mb-1">Nível</span>
-                        <div id="lvl" class="text-2xl font-black text-white">-</div>
-                    </div>
-                    <div class="bg-gray-800/80 p-3 rounded-xl border border-gray-700">
-                        <span class="text-xs uppercase text-yellow-500 font-bold block mb-1">Moedas</span>
-                        <div id="coins" class="text-2xl font-black text-yellow-500">-</div>
-                    </div>
-                    <div class="bg-gray-800/80 p-3 rounded-xl border border-gray-700">
-                        <span class="text-xs uppercase text-orange-500 font-bold block mb-1">Óleo</span>
-                        <div id="oil" class="text-2xl font-black text-orange-500">-</div>
-                    </div>
-                </div>
+    <div id="app-content" class="hidden max-w-2xl mx-auto">
+        <header class="flex justify-between items-center mb-6">
+            <button onclick="window.toggleSidebar()" class="bg-slate-800 p-2 rounded-lg text-white">☰ MENU</button>
+            <h1 class="text-2xl font-black text-indigo-400 tracking-widest italic">TASK RPG</h1>
+            <div class="w-8"></div>
+        </header>
 
-                <div class="relative pt-1">
-                    <div class="flex mb-2 items-center justify-between">
-                        <div class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-indigo-200 bg-indigo-900">XP Progress</div>
-                        <div class="text-right"><span id="xp-text" class="text-xs font-semibold inline-block text-indigo-400">0 / 0</span></div>
-                    </div>
-                    <div class="overflow-hidden h-3 mb-4 text-xs flex rounded-full bg-gray-700">
-                        <div id="xp-bar" class="xp-bar shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500"></div>
-                    </div>
+        <!-- Status do Herói -->
+        <div class="card-base p-6 rounded-3xl mb-8">
+            <div class="flex flex-col items-center mb-6">
+                <div class="text-6xl mb-3 bg-indigo-500/10 p-4 rounded-full border border-indigo-500/30">🧑‍🚀</div>
+                <h2 id="hero-name" class="text-2xl font-bold">Herói</h2>
+                <p id="hero-email" class="text-[10px] text-slate-500 font-mono"></p>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700">
+                    <span class="text-[10px] uppercase text-indigo-400 font-bold">Nível</span>
+                    <div id="lvl" class="text-2xl font-black">1</div>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700">
+                    <span class="text-[10px] uppercase text-yellow-500 font-bold">Moedas</span>
+                    <div id="coins" class="text-2xl font-black text-yellow-500">0</div>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700">
+                    <span class="text-[10px] uppercase text-orange-500 font-bold">Óleo</span>
+                    <div id="oil" class="text-2xl font-black text-orange-500">0</div>
                 </div>
             </div>
 
-            <!-- Seções do App -->
-            <div id="tasks-section" class="space-y-4">
-                <div class="card-base p-5 rounded-2xl">
-                    <h3 class="font-bold text-lg mb-3">⚔️ Nova Missão</h3>
-                    <input type="text" id="task-input" placeholder="O que vais conquistar hoje?" class="w-full p-3 bg-gray-800 rounded-xl mb-3 border border-gray-700 focus:border-indigo-500 outline-none">
-                    <div class="flex gap-2">
-                        <select id="task-difficulty" class="bg-gray-800 p-3 rounded-xl flex-1 border border-gray-700">
-                            <option value="easy">Fácil (+10 XP)</option>
-                            <option value="medium">Média (+25 XP)</option>
-                            <option value="hard">Difícil (+50 XP)</option>
-                        </select>
-                        <button onclick="window.addTask()" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95">Adicionar</button>
-                    </div>
-                </div>
-                <div id="tasks-list" class="space-y-3"></div>
+            <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden">
+                <div id="xp-bar" class="xp-bar bg-indigo-500 h-full w-0"></div>
             </div>
+        </div>
 
-            <div id="habits-section" class="hidden space-y-4">
-                <div class="card-base p-5 rounded-2xl">
-                    <h3 class="font-bold text-lg mb-3">🔥 Novo Hábito</h3>
-                    <div class="flex gap-2">
-                        <input type="text" id="habit-input" placeholder="Ex: Ler, Treinar..." class="flex-1 p-3 bg-gray-800 rounded-xl border border-gray-700">
-                        <button onclick="window.addHabit()" class="bg-indigo-600 px-6 rounded-xl font-bold">Criar</button>
-                    </div>
-                </div>
-                <div id="habits-list" class="space-y-3"></div>
-            </div>
-
-            <div id="foco-section" class="hidden text-center space-y-6">
-                <div class="card-base p-10 rounded-2xl">
-                    <h2 class="text-2xl font-bold mb-2">Fogueira de Foco</h2>
-                    <p class="text-gray-400 text-sm mb-8">Conclui sessões de 20 min para ganhar óleo.</p>
-                    <div class="relative w-40 h-40 mx-auto mb-8">
-                        <svg viewBox="0 0 100 100" class="w-full h-full flame-anim">
-                            <path d="M50 95 Q 25 75 50 10 Q 75 75 50 95" fill="#f97316" opacity="0.8" />
-                            <path d="M50 90 Q 35 75 50 30 Q 65 75 50 90" fill="#fbbf24" />
-                            <path d="M40 95 L 60 95 L 55 90 L 45 90 Z" fill="#4a1e1e" />
-                        </svg>
-                    </div>
-                    <div id="focus-timer" class="text-7xl font-mono font-black mb-8 text-white tracking-widest">20:00</div>
-                    <button id="focus-btn" onclick="window.toggleFocus()" class="w-full bg-green-600 hover:bg-green-500 py-4 rounded-2xl font-bold text-xl transition-all shadow-xl">Começar Sessão</button>
+        <!-- Secções -->
+        <div id="view-tasks">
+            <div class="card-base p-5 rounded-2xl mb-4">
+                <input type="text" id="t-input" placeholder="Nova missão..." class="w-full bg-slate-900 p-3 rounded-xl mb-3 outline-none border border-slate-700 focus:border-indigo-500 text-white">
+                <div class="flex gap-2">
+                    <select id="t-diff" class="bg-slate-800 p-3 rounded-xl flex-1 text-sm">
+                        <option value="easy">Fácil</option>
+                        <option value="medium">Média</option>
+                        <option value="hard">Difícil</option>
+                    </select>
+                    <button onclick="window.addTask()" class="bg-indigo-600 px-6 rounded-xl font-bold">ADD</button>
                 </div>
             </div>
+            <div id="t-list" class="space-y-3"></div>
+        </div>
 
-            <div id="store-section" class="hidden space-y-4">
-                <div class="grid grid-cols-1 gap-4" id="store-list"></div>
+        <div id="view-foco" class="hidden text-center card-base p-10 rounded-3xl">
+            <h3 class="text-xl font-bold mb-8 uppercase tracking-widest text-indigo-400">Fogueira de Foco</h3>
+            <div class="w-32 h-32 mx-auto mb-8 flame-anim">
+                <svg viewBox="0 0 100 100"><path d="M50 95 Q 25 75 50 10 Q 75 75 50 95" fill="#f97316"/><path d="M50 90 Q 35 75 50 30 Q 65 75 50 90" fill="#fbbf24"/></svg>
             </div>
+            <div id="timer" class="text-6xl font-mono font-black mb-8">20:00</div>
+            <button id="timer-btn" onclick="window.toggleTimer()" class="w-full bg-green-600 py-4 rounded-2xl font-bold text-xl shadow-lg">COMEÇAR</button>
+        </div>
 
-            <div id="inventory-section" class="hidden grid grid-cols-2 gap-4" id="inventory-list"></div>
-
-            <div id="quiz-section" class="hidden space-y-4 text-center">
-                <div class="card-base p-8 rounded-2xl">
-                    <h3 class="text-2xl font-bold mb-4">🧠 Desafio Diário</h3>
-                    <p id="quiz-question" class="text-lg mb-6">A carregar pergunta...</p>
-                    <div id="quiz-options" class="grid gap-3"></div>
-                </div>
-            </div>
-
-            <div id="achievements-section" class="hidden space-y-3" id="achievements-list"></div>
+        <!-- Loja e Inventário Simplificados para o Tablet -->
+        <div id="view-store" class="hidden space-y-3">
+             <div class="card-base p-4 rounded-xl flex justify-between items-center">
+                <span>⚔️ Espada Básica</span>
+                <button onclick="window.buy(50)" class="bg-yellow-600 px-4 py-2 rounded-lg font-bold">💰 50</button>
+             </div>
         </div>
     </div>
 
-    <!-- Sidebar Menu -->
-    <div id="sidebar-overlay" class="fixed inset-0 bg-black/70 z-40 hidden" onclick="window.toggleSidebar()"></div>
-    <div id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-gray-900 z-50 transform -translate-x-full transition-transform duration-300 p-8 flex flex-col border-r border-gray-800">
-        <h3 class="text-3xl font-black text-indigo-500 mb-10 italic">TASK RPG</h3>
-        <nav class="flex-1 space-y-2">
-            <button onclick="window.switchSection('tasks')" class="w-full text-left p-4 hover:bg-gray-800 rounded-xl font-bold flex items-center gap-3"><span>⚔️</span> Missões</button>
-            <button onclick="window.switchSection('habits')" class="w-full text-left p-4 hover:bg-gray-800 rounded-xl font-bold flex items-center gap-3"><span>🔥</span> Hábitos</button>
-            <button onclick="window.switchSection('foco')" class="w-full text-left p-4 hover:bg-gray-800 rounded-xl font-bold flex items-center gap-3"><span>🧘</span> Foco</button>
-            <button onclick="window.switchSection('quiz')" class="w-full text-left p-4 hover:bg-gray-800 rounded-xl font-bold flex items-center gap-3 relative"><span>🧠</span> Quiz Diário <div id="quiz-notif" class="notification-dot hidden"></div></button>
-            <button onclick="window.switchSection('store')" class="w-full text-left p-4 hover:bg-gray-800 rounded-xl font-bold flex items-center gap-3"><span>💰</span> Loja</button>
-            <button onclick="window.switchSection('inventory')" class="w-full text-left p-4 hover:bg-gray-800 rounded-xl font-bold flex items-center gap-3"><span>🎒</span> Inventário</button>
-            <button onclick="window.switchSection('achievements')" class="w-full text-left p-4 hover:bg-gray-800 rounded-xl font-bold flex items-center gap-3"><span>🏆</span> Conquistas</button>
+    <!-- Sidebar -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/80 z-40 hidden" onclick="window.toggleSidebar()"></div>
+    <div id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-slate-900 z-50 transform -translate-x-full transition-transform p-6 border-r border-slate-800">
+        <h3 class="text-xl font-bold mb-8">MENU</h3>
+        <nav class="space-y-2">
+            <button onclick="window.switchView('tasks')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl">⚔️ Missões</button>
+            <button onclick="window.switchView('foco')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl">🧘 Foco</button>
+            <button onclick="window.switchView('store')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl">💰 Loja</button>
+            <hr class="border-slate-800 my-4">
+            <button id="link-btn" onclick="window.showLink()" class="w-full p-4 bg-indigo-600 rounded-xl font-bold text-sm">🔗 SALVAR EM NUVEM</button>
+            <button id="logout-btn" onclick="window.logout()" class="hidden w-full p-4 text-red-400 font-bold">🚪 SAIR</button>
         </nav>
-        <div class="mt-auto pt-6 border-t border-gray-800">
-            <button id="link-btn" onclick="window.showLinkModal()" class="w-full p-4 bg-indigo-600 rounded-xl font-bold mb-2">🔗 Salvar em Nuvem</button>
-            <button id="logout-btn" onclick="window.logout()" class="hidden w-full p-4 bg-red-900/30 text-red-400 rounded-xl font-bold">Sair</button>
-        </div>
     </div>
 
-    <!-- Modais -->
-    <div id="link-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h3 class="text-2xl font-bold mb-2">Salvar Progresso</h3>
-            <p class="text-sm text-gray-400 mb-6">Crie uma conta para nunca perder o seu nível e itens.</p>
-            <input type="email" id="link-email" placeholder="E-mail" class="w-full p-3 bg-gray-800 rounded-lg mb-2 border border-gray-700">
-            <input type="password" id="link-pass" placeholder="Senha" class="w-full p-3 bg-gray-800 rounded-lg mb-6 border border-gray-700">
+    <!-- Modal Link -->
+    <div id="modal-link" class="modal-overlay hidden">
+        <div class="bg-slate-800 p-8 rounded-3xl border-2 border-indigo-500 w-80 text-center">
+            <h3 class="text-xl font-bold mb-4">Criar Conta</h3>
+            <input type="email" id="email" placeholder="Email" class="w-full p-3 bg-slate-900 rounded-xl mb-2 border border-slate-700">
+            <input type="password" id="pass" placeholder="Senha" class="w-full p-3 bg-slate-900 rounded-xl mb-6 border border-slate-700">
             <div class="flex gap-2">
-                <button onclick="window.handleLinkAccount()" class="flex-1 bg-green-600 p-3 rounded-lg font-bold">Vincular</button>
-                <button onclick="document.getElementById('link-modal').classList.add('hidden')" class="flex-1 bg-gray-700 p-3 rounded-lg">Cancelar</button>
+                <button onclick="window.linkAccount()" class="flex-1 bg-green-600 p-3 rounded-xl font-bold">SALVAR</button>
+                <button onclick="document.getElementById('modal-link').classList.add('hidden')" class="flex-1 bg-slate-700 p-3 rounded-xl">SAIR</button>
             </div>
         </div>
     </div>
 
     <script type="module">
-        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, signOut, writeBatch, firebaseConfig } = window.firebase;
+        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, signOut, firebaseConfig } = window.firebase;
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "task-rpg-v1";
+        const appId = "rpg-task-v2";
 
-        let user = null, stats = {}, tasks = [], habits = [], inventory = {}, focusTimer = null;
+        let user = null, stats = {}, tasks = [], timer = null;
 
-        // --- Configuração da Loja ---
-        const STORE_ITEMS = [
-            { id: 'item_hat', name: 'Elmo de Ferro', price: 150, icon: '🪖', desc: 'Aumenta a sua presença visual.' },
-            { id: 'item_sword', name: 'Espada Lendária', price: 500, icon: '⚔️', desc: 'Item cosmético de elite.' },
-            { id: 'item_scroll', name: 'Pergaminho de Nome', price: 50, icon: '📜', desc: 'Permite mudar o nome (uso único).' }
-        ];
-
-        // --- Autenticação ---
-        onAuthStateChanged(auth, async (u) => {
+        // --- Auth ---
+        onAuthStateChanged(auth, (u) => {
             if (u) {
                 user = u;
                 document.getElementById('app-content').classList.remove('hidden');
-                document.getElementById('hero-email').textContent = u.isAnonymous ? "Sessão Convidado" : u.email;
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('hero-email').textContent = u.isAnonymous ? "Conta Local" : u.email;
                 document.getElementById('link-btn').classList.toggle('hidden', !u.isAnonymous);
                 document.getElementById('logout-btn').classList.toggle('hidden', u.isAnonymous);
-                initRealtimeSync();
+                startSync();
             } else {
-                signInAnonymously(auth);
+                signInAnonymously(auth).catch(e => alert("Erro ao ligar: " + e.message));
             }
         });
 
-        // --- Sincronização em Tempo Real ---
-        function initRealtimeSync() {
+        function startSync() {
             onSnapshot(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), (s) => {
-                stats = s.exists() ? s.data() : { lvl: 1, xp: 0, coins: 0, oil: 0, name: "Aventureiro" };
+                stats = s.exists() ? s.data() : { lvl: 1, xp: 0, coins: 0, oil: 0, name: "Herói" };
                 updateUI();
             });
             onSnapshot(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), (s) => {
                 tasks = s.docs.map(d => ({id: d.id, ...d.data()}));
                 renderTasks();
-            });
-            onSnapshot(collection(db, `artifacts/${appId}/users/${user.uid}/habits`), (s) => {
-                habits = s.docs.map(d => ({id: d.id, ...d.data()}));
-                renderHabits();
-            });
-            onSnapshot(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'inventory'), (s) => {
-                inventory = s.exists() ? s.data() : {};
-                renderInventory();
-                renderStore();
             });
         }
 
@@ -229,210 +175,78 @@
             document.getElementById('lvl').textContent = stats.lvl;
             document.getElementById('coins').textContent = stats.coins;
             document.getElementById('oil').textContent = stats.oil;
-            document.getElementById('hero-name').textContent = stats.name || "Aventureiro";
             const xpMax = stats.lvl * 100;
-            document.getElementById('xp-text').textContent = `${stats.xp} / ${xpMax}`;
             document.getElementById('xp-bar').style.width = `${(stats.xp / xpMax) * 100}%`;
         }
 
-        // --- Gerenciamento de Tarefas ---
         window.addTask = async () => {
-            const name = document.getElementById('task-input').value;
-            const diff = document.getElementById('task-difficulty').value;
+            const name = document.getElementById('t-input').value;
+            const diff = document.getElementById('t-diff').value;
             if(!name) return;
-            await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), { name, diff, createdAt: Date.now() });
-            document.getElementById('task-input').value = "";
+            await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), { name, diff, done: false });
+            document.getElementById('t-input').value = "";
         };
 
         function renderTasks() {
-            const list = document.getElementById('tasks-list');
-            list.innerHTML = tasks.length === 0 ? '<p class="text-center text-gray-500 py-4">Nenhuma missão no mapa.</p>' :
-                tasks.map(t => `
-                    <div class="card-base p-4 rounded-xl flex justify-between items-center border-l-4 border-indigo-500">
-                        <div>
-                            <p class="font-bold text-white">${t.name}</p>
-                            <span class="text-[10px] uppercase font-black text-indigo-400">${t.diff}</span>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="window.completeTask('${t.id}', '${t.diff}')" class="bg-green-600 p-2 rounded-lg">✓</button>
-                            <button onclick="window.deleteTask('${t.id}')" class="bg-red-900/50 p-2 rounded-lg text-red-400">✕</button>
-                        </div>
-                    </div>
-                `).join('');
-        }
-
-        window.completeTask = async (id, diff) => {
-            const rewards = { easy: 10, medium: 25, hard: 50 };
-            const gain = rewards[diff];
-            let newXp = stats.xp + gain;
-            let newLvl = stats.lvl;
-            if(newXp >= stats.lvl * 100) { newXp = 0; newLvl++; }
-            await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), {
-                ...stats, xp: newXp, lvl: newLvl, coins: stats.coins + Math.floor(gain/2)
-            });
-            await deleteDoc(doc(db, `artifacts/${appId}/users/${user.uid}/tasks`, id));
-        };
-
-        window.deleteTask = async (id) => await deleteDoc(doc(db, `artifacts/${appId}/users/${user.uid}/tasks`, id));
-
-        // --- Hábitos ---
-        window.addHabit = async () => {
-            const name = document.getElementById('habit-input').value;
-            if(!name) return;
-            await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/habits`), { name, streak: 0, lastDone: 0 });
-            document.getElementById('habit-input').value = "";
-        };
-
-        function renderHabits() {
-            const list = document.getElementById('habits-list');
-            list.innerHTML = habits.map(h => `
-                <div class="card-base p-4 rounded-xl flex justify-between items-center">
-                    <div>
-                        <p class="font-bold text-white">${h.name}</p>
-                        <p class="text-xs text-orange-400 font-bold">🔥 Sequência: ${h.streak} dias</p>
-                    </div>
-                    <button onclick="window.checkHabit('${h.id}')" class="bg-orange-600 p-3 rounded-xl font-bold">Check</button>
+            const list = document.getElementById('t-list');
+            list.innerHTML = tasks.map(t => `
+                <div class="bg-slate-800/50 p-4 rounded-2xl flex justify-between items-center border border-slate-700">
+                    <div><p class="font-bold">${t.name}</p><span class="text-[10px] text-indigo-400 uppercase">${t.diff}</span></div>
+                    <button onclick="window.complete('${t.id}', '${t.diff}')" class="bg-indigo-600 px-4 py-2 rounded-xl font-bold">✓</button>
                 </div>
             `).join('');
         }
 
-        window.checkHabit = async (id) => {
-            const habit = habits.find(h => h.id === id);
-            const now = Date.now();
-            const today = new Date().setHours(0,0,0,0);
-            if(habit.lastDone >= today) return alert("Já completaste hoje!");
-            
-            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/habits`, id), {
-                streak: habit.streak + 1,
-                lastDone: now
-            });
-            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), {
-                coins: stats.coins + 5,
-                xp: stats.xp + 5
-            });
+        window.complete = async (id, diff) => {
+            const gain = diff === 'easy' ? 10 : (diff === 'medium' ? 25 : 50);
+            let nxp = stats.xp + gain;
+            let nlvl = stats.lvl;
+            if(nxp >= stats.lvl * 100) { nxp = 0; nlvl++; }
+            await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { ...stats, xp: nxp, lvl: nlvl, coins: stats.coins + Math.floor(gain/2) });
+            await deleteDoc(doc(db, `artifacts/${appId}/users/${user.uid}/tasks`, id));
         };
 
-        // --- Foco (Timer) ---
-        window.toggleFocus = () => {
-            if(focusTimer) {
-                clearInterval(focusTimer);
-                focusTimer = null;
-                document.getElementById('focus-timer').textContent = "20:00";
-                document.getElementById('focus-btn').textContent = "Começar Sessão";
-                document.getElementById('focus-btn').className = "w-full bg-green-600 hover:bg-green-500 py-4 rounded-2xl font-bold text-xl transition-all shadow-xl";
-                return;
-            }
-            let time = 20 * 60;
-            document.getElementById('focus-btn').textContent = "Parar Foco";
-            document.getElementById('focus-btn').className = "w-full bg-red-600/50 py-4 rounded-2xl font-bold text-xl transition-all";
-            focusTimer = setInterval(async () => {
-                time--;
-                let m = Math.floor(time/60), s = time%60;
-                document.getElementById('focus-timer').textContent = `${m}:${s < 10 ? '0'+s : s}`;
-                if(time <= 0) {
-                    clearInterval(focusTimer);
-                    focusTimer = null;
+        window.toggleTimer = () => {
+            if(timer) { clearInterval(timer); timer = null; document.getElementById('timer-btn').textContent = "COMEÇAR"; return; }
+            let s = 20 * 60;
+            document.getElementById('timer-btn').textContent = "PARAR";
+            timer = setInterval(async () => {
+                s--;
+                document.getElementById('timer').textContent = `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+                if(s <= 0) {
+                    clearInterval(timer);
                     await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { oil: stats.oil + 1 });
-                    alert("Foco concluído! +1 Óleo ganho.");
-                    window.toggleFocus();
+                    alert("Fogo alimentado! +1 Óleo.");
+                    window.toggleTimer();
                 }
             }, 1000);
         };
 
-        // --- Loja & Inventário ---
-        function renderStore() {
-            const list = document.getElementById('store-list');
-            list.innerHTML = STORE_ITEMS.map(item => `
-                <div class="card-base p-4 rounded-xl flex justify-between items-center">
-                    <div class="flex items-center gap-4">
-                        <div class="text-4xl">${item.icon}</div>
-                        <div>
-                            <p class="font-bold text-white">${item.name}</p>
-                            <p class="text-xs text-gray-400">${item.desc}</p>
-                        </div>
-                    </div>
-                    <button onclick="window.buyItem('${item.id}')" class="bg-yellow-600 text-black font-bold px-4 py-2 rounded-lg">💰 ${item.price}</button>
-                </div>
-            `).join('');
-        }
-
-        window.buyItem = async (id) => {
-            const item = STORE_ITEMS.find(i => i.id === id);
-            if(stats.coins < item.price) return alert("Moedas insuficientes!");
-            const newInv = { ...inventory };
-            newInv[id] = (newInv[id] || 0) + 1;
-            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: stats.coins - item.price });
-            await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'inventory'), newInv);
-            alert(`Compraste ${item.name}!`);
-        };
-
-        function renderInventory() {
-            const list = document.getElementById('inventory-section');
-            const items = Object.keys(inventory).map(id => {
-                const item = STORE_ITEMS.find(i => i.id === id);
-                return `
-                    <div class="card-base p-4 rounded-xl text-center">
-                        <div class="text-4xl mb-2">${item.icon}</div>
-                        <p class="font-bold text-sm">${item.name}</p>
-                        <p class="text-xs text-indigo-400">Qtd: ${inventory[id]}</p>
-                    </div>
-                `;
-            });
-            list.innerHTML = items.length ? items.join('') : '<p class="col-span-2 text-center text-gray-500">Mochila vazia.</p>';
-        }
-
-        // --- Quiz Diário ---
-        const QUESTIONS = [
-            { q: "Qual o herói que luta com tarefas?", o: ["Mago", "Guerreiro do Teclado", "Preguiça"], a: 1 },
-            { q: "Como ganhas XP neste app?", o: ["Dormindo", "Completando missões", "Olhando para o ecrã"], a: 1 }
-        ];
-
-        window.renderQuiz = () => {
-            const q = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
-            document.getElementById('quiz-question').textContent = q.q;
-            document.getElementById('quiz-options').innerHTML = q.o.map((o, i) => `
-                <button onclick="window.checkQuiz(${i}, ${q.a})" class="bg-gray-800 p-4 rounded-xl hover:bg-indigo-900 transition-colors font-bold">${o}</button>
-            `).join('');
-        };
-
-        window.checkQuiz = async (idx, correct) => {
-            if(idx === correct) {
-                await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: stats.coins + 20, xp: stats.xp + 20 });
-                alert("Acertaste! +20 Moedas e XP.");
-            } else { alert("Errado! Tenta amanhã."); }
-            window.switchSection('tasks');
-        };
-
-        // --- Navegação ---
-        window.toggleSidebar = () => {
-            document.getElementById('sidebar').classList.toggle('-translate-x-full');
-            document.getElementById('sidebar-overlay').classList.toggle('hidden');
-        };
-
-        window.switchSection = (id) => {
-            ['tasks', 'habits', 'foco', 'store', 'inventory', 'quiz', 'achievements'].forEach(s => {
-                document.getElementById(`${s}-section`).classList.add('hidden');
-            });
-            document.getElementById(`${id}-section`).classList.remove('hidden');
-            if(id === 'quiz') window.renderQuiz();
+        window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebar-overlay').classList.toggle('hidden'); };
+        window.switchView = (v) => { 
+            document.getElementById('view-tasks').classList.toggle('hidden', v !== 'tasks');
+            document.getElementById('view-foco').classList.toggle('hidden', v !== 'foco');
+            document.getElementById('view-store').classList.toggle('hidden', v !== 'store');
             window.toggleSidebar();
         };
-
-        window.showLinkModal = () => document.getElementById('link-modal').classList.remove('hidden');
+        window.showLink = () => document.getElementById('modal-link').classList.remove('hidden');
         window.logout = () => signOut(auth).then(() => location.reload());
-
-        window.handleLinkAccount = async () => {
-            const email = document.getElementById('link-email').value;
-            const pass = document.getElementById('link-pass').value;
-            if(!email || pass.length < 6) return alert("Dados inválidos (senha mín. 6 carac.)");
-            const cred = EmailAuthProvider.credential(email, pass);
-            try {
-                await linkWithCredential(auth.currentUser, cred);
-                alert("Conta vinculada! Progresso seguro.");
-                location.reload();
-            } catch(e) { alert("Erro: " + e.message); }
+        window.buy = async (p) => {
+            if(stats.coins < p) return alert("Moedas insuficientes!");
+            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: stats.coins - p });
+            alert("Item comprado!");
         };
 
+        window.linkAccount = async () => {
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('pass').value;
+            const cred = EmailAuthProvider.credential(e, p);
+            try {
+                await linkWithCredential(auth.currentUser, cred);
+                alert("Conta guardada com sucesso!");
+                location.reload();
+            } catch(err) { alert(err.message); }
+        };
     </script>
 </body>
 </html>
