@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Task RPG - Versão Ouro</title>
+    <title>Task RPG - Estável</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // --- COLOQUE AS SUAS CHAVES DO FIREBASE AQUI ---
+        // --- CONFIGURAÇÃO FIREBASE (MANTENHA AS SUAS CHAVES AQUI) ---
         const firebaseConfig = {
             apiKey: "AIzaSyDGVTkVOvS9-y6TpIT1njjfYM6QhR_qZng",
   authDomain: "rpg-task-ffa2b.firebaseapp.com",
@@ -19,21 +19,262 @@
   messagingSenderId: "954731298180",
   appId: "1:954731298180:web:51b57b46042c1ad64ab1d1"
         };
-        // ---------------------------------------------
+        // ---------------------------------------------------------
 
         window.firebase = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signInWithEmailAndPassword, signOut, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, firebaseConfig };
     </script>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
-        .card-base { background: #1e293b; border: 1px solid #334155; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); }
-        .xp-bar { height: 10px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 9999px; }
+        .card-base { background: #1e293b; border: 1px solid #334155; border-radius: 1.5rem; }
+        .xp-bar { height: 10px; transition: width 0.5s ease; border-radius: 9999px; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(8px); }
-        .flame-anim { animation: float 3s ease-in-out infinite; filter: drop-shadow(0 0 15px #f97316); }
-        @keyframes float { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-10px) scale(1.05); } }
-        .btn-tap:active { transform: scale(0.95); }
+        .btn-active:active { transform: scale(0.95); }
     </style>
 </head>
 <body class="p-4 md:p-8 min-h-screen">
+
+    <!-- Tela de Carregamento -->
+    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 z-[9999]">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
+        <p class="text-indigo-400 font-bold animate-pulse text-xs uppercase tracking-widest">Sincronizando Dados...</p>
+    </div>
+
+    <div id="app-content" class="hidden max-w-2xl mx-auto pb-20">
+        <header class="flex justify-between items-center mb-6">
+            <button onclick="window.toggleSidebar()" class="bg-slate-800 p-3 rounded-xl shadow-lg btn-active">☰ MENU</button>
+            <h1 class="text-2xl font-black text-indigo-400 italic">TASK RPG</h1>
+            <div class="w-10"></div>
+        </header>
+
+        <!-- Painel do Herói -->
+        <div class="card-base p-6 mb-8 relative overflow-hidden shadow-2xl">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+            <div class="flex flex-col items-center mb-6">
+                <div class="text-6xl mb-3 bg-indigo-500/10 p-5 rounded-full border border-indigo-500/20">🧑‍🚀</div>
+                <h2 id="hero-name" class="text-2xl font-bold">Herói</h2>
+                <p id="hero-email" class="text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-widest"></p>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
+                    <span class="text-[10px] uppercase text-indigo-400 font-black">Nível</span>
+                    <div id="lvl" class="text-2xl font-black">1</div>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
+                    <span class="text-[10px] uppercase text-yellow-500 font-black">Ouro</span>
+                    <div id="coins" class="text-2xl font-black text-yellow-500">0</div>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
+                    <span class="text-[10px] uppercase text-orange-500 font-black">Óleo</span>
+                    <div id="oil" class="text-2xl font-black text-orange-500">0</div>
+                </div>
+            </div>
+
+            <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                <div id="xp-bar" class="xp-bar bg-indigo-500 h-full w-0"></div>
+            </div>
+        </div>
+
+        <!-- Seções -->
+        <div id="section-tasks" class="space-y-4">
+            <div class="card-base p-5 shadow-xl">
+                <h3 class="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider">Nova Missão</h3>
+                <input type="text" id="t-input" placeholder="O que vais conquistar?" class="w-full bg-slate-900 p-4 rounded-xl mb-3 outline-none border border-slate-700 text-white">
+                <div class="flex gap-2">
+                    <select id="t-diff" class="bg-slate-800 p-4 rounded-xl flex-1 text-sm font-bold text-indigo-300">
+                        <option value="easy">Fácil</option>
+                        <option value="medium">Média</option>
+                        <option value="hard">Difícil</option>
+                    </select>
+                    <button onclick="window.addTask()" class="bg-indigo-600 px-8 rounded-xl font-black shadow-lg btn-active">ADD</button>
+                </div>
+            </div>
+            <div id="t-list" class="space-y-3"></div>
+        </div>
+
+        <!-- Outras seções como Foco, Habits, etc (estão no JS abaixo) -->
+        <div id="section-foco" class="hidden text-center card-base p-10">
+            <h3 class="text-xl font-bold mb-8 uppercase text-indigo-400">Fogueira de Foco</h3>
+            <div id="timer" class="text-7xl font-mono font-black mb-10 text-white">20:00</div>
+            <button id="timer-btn" onclick="window.toggleTimer()" class="w-full bg-green-600 py-5 rounded-2xl font-black text-xl shadow-xl btn-active">COMEÇAR</button>
+        </div>
+    </div>
+
+    <!-- Menu Lateral -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/80 z-40 hidden" onclick="window.toggleSidebar()"></div>
+    <div id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-slate-900 z-50 transform -translate-x-full transition-transform duration-300 p-8 flex flex-col border-r border-slate-800">
+        <h3 class="text-2xl font-black text-indigo-500 mb-10 italic">MENU</h3>
+        <nav class="flex-1 space-y-2">
+            <button onclick="window.switchTab('tasks')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">⚔️ Missões</button>
+            <button onclick="window.switchTab('foco')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold">🧘 Foco</button>
+            <hr class="border-slate-800 my-6">
+            <button id="link-btn" onclick="window.openAuth('link')" class="w-full p-4 bg-indigo-600 rounded-xl font-black text-xs">🔗 SALVAR EM NUVEM</button>
+            <button id="login-btn" onclick="window.openAuth('login')" class="w-full p-4 border border-indigo-500/30 text-indigo-400 rounded-xl font-bold text-xs mt-2">🔑 JÁ TENHO CONTA</button>
+            <button id="logout-btn" onclick="window.handleLogout()" class="hidden w-full p-4 bg-red-900/20 text-red-400 rounded-xl font-bold text-xs mt-4">🚪 SAIR</button>
+        </nav>
+    </div>
+
+    <!-- Modal Auth -->
+    <div id="modal-auth" class="modal-overlay hidden">
+        <div class="bg-slate-800 p-8 rounded-3xl border-2 border-indigo-500 w-full max-w-[340px] text-center shadow-2xl">
+            <h3 id="modal-title" class="text-xl font-bold mb-2 uppercase text-indigo-400">Vincular Conta</h3>
+            <p id="modal-desc" class="text-xs text-slate-400 mb-6 italic">Guarde o seu herói para sempre.</p>
+            <input type="email" id="auth-email" placeholder="E-mail" class="w-full p-4 bg-slate-900 rounded-xl mb-2 border border-slate-700 outline-none text-white">
+            <input type="password" id="auth-pass" placeholder="Senha" class="w-full p-4 bg-slate-900 rounded-xl mb-6 border border-slate-700 outline-none text-white">
+            <button id="auth-btn" onclick="window.handleAuth()" class="w-full bg-green-600 py-4 rounded-xl font-black text-white shadow-lg btn-active">CONFIRMAR</button>
+            <button onclick="window.closeAuth()" class="w-full py-4 text-slate-500 text-xs font-bold mt-2 uppercase tracking-widest">Cancelar</button>
+        </div>
+    </div>
+
+    <script type="module">
+        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signInWithEmailAndPassword, signOut, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, firebaseConfig } = window.firebase;
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // ESTE ID É O SEU "ENDEREÇO" FIXO. NÃO MUDE ISTO PARA NÃO PERDER DADOS.
+        const appId = "task-rpg-production-final"; 
+
+        let user = null, stats = {}, tasks = [], timer = null, authMode = 'link';
+
+        // --- Autenticação ---
+        onAuthStateChanged(auth, (u) => {
+            if (u) {
+                user = u;
+                document.getElementById('app-content').classList.remove('hidden');
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('hero-email').textContent = u.isAnonymous ? "Sessão Convidado" : u.email;
+                
+                document.getElementById('link-btn').classList.toggle('hidden', !u.isAnonymous);
+                document.getElementById('login-btn').classList.toggle('hidden', !u.isAnonymous);
+                document.getElementById('logout-btn').classList.toggle('hidden', u.isAnonymous);
+                
+                startSync();
+            } else {
+                signInAnonymously(auth);
+            }
+        });
+
+        window.handleLogout = async () => {
+            if(confirm("Deseja mesmo sair?")) {
+                await signOut(auth);
+                location.reload();
+            }
+        };
+
+        window.handleAuth = async () => {
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-pass').value;
+            const btn = document.getElementById('auth-btn');
+            if(!email || pass.length < 6) return alert("Email inválido ou senha muito curta.");
+            
+            btn.disabled = true;
+            btn.textContent = "PROCESSANDO...";
+
+            try {
+                if(authMode === 'link') {
+                    const cred = EmailAuthProvider.credential(email, pass);
+                    await linkWithCredential(auth.currentUser, cred);
+                    alert("✅ Conta Vinculada! O seu progresso está seguro.");
+                } else {
+                    await signInWithEmailAndPassword(auth, email, pass);
+                    alert("👋 Bem-vindo de volta!");
+                }
+                location.reload();
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = "CONFIRMAR";
+                if(err.code === 'auth/provider-already-linked' || err.code === 'auth/email-already-in-use') {
+                    alert("Este e-mail já tem uma conta. Use a opção 'JÁ TENHO CONTA'.");
+                    window.closeAuth();
+                } else {
+                    alert("Erro: " + err.message);
+                }
+            }
+        };
+
+        // --- Sincronização ---
+        function startSync() {
+            // Sincronizar Estatísticas
+            onSnapshot(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), (s) => {
+                if(s.exists()) {
+                    stats = s.data();
+                } else {
+                    // Se não existir, criamos os dados iniciais
+                    stats = { lvl: 1, xp: 0, coins: 0, oil: 0 };
+                    setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), stats);
+                }
+                updateUI();
+            });
+
+            // Sincronizar Missões
+            onSnapshot(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), (s) => {
+                tasks = s.docs.map(d => ({id: d.id, ...d.data()}));
+                renderTasks();
+            });
+        }
+
+        function updateUI() {
+            document.getElementById('lvl').textContent = stats.lvl || 1;
+            document.getElementById('coins').textContent = stats.coins || 0;
+            document.getElementById('oil').textContent = stats.oil || 0;
+            const xpMax = (stats.lvl || 1) * 100;
+            document.getElementById('xp-bar').style.width = `${((stats.xp || 0) / xpMax) * 100}%`;
+        }
+
+        window.addTask = async () => {
+            const name = document.getElementById('t-input').value;
+            const diff = document.getElementById('t-diff').value;
+            if(!name) return;
+            await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), { name, diff, createdAt: Date.now() });
+            document.getElementById('t-input').value = "";
+        };
+
+        function renderTasks() {
+            const list = document.getElementById('t-list');
+            list.innerHTML = tasks.length === 0 ? '<p class="text-center py-6 text-slate-500 italic">Sem missões.</p>' : 
+            tasks.map(t => `
+                <div class="bg-slate-800/50 p-4 rounded-2xl flex justify-between items-center border border-slate-700/50">
+                    <div><p class="font-bold text-sm">${t.name}</p><span class="text-[9px] text-indigo-400 uppercase font-black tracking-widest">${t.diff}</span></div>
+                    <button onclick="window.completeTask('${t.id}', '${t.diff}')" class="bg-indigo-600 px-5 py-2 rounded-xl font-black text-xs active:bg-indigo-500">FEITO</button>
+                </div>
+            `).join('');
+        }
+
+        window.completeTask = async (id, diff) => {
+            const gain = diff === 'easy' ? 10 : (diff === 'medium' ? 25 : 50);
+            let nxp = (stats.xp || 0) + gain;
+            let nlvl = (stats.lvl || 1);
+            if(nxp >= nlvl * 100) { nxp = 0; nlvl++; }
+            await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { ...stats, xp: nxp, lvl: nlvl, coins: (stats.coins || 0) + Math.floor(gain/2) });
+            await deleteDoc(doc(db, `artifacts/${appId}/users/${user.uid}/tasks`, id));
+        };
+
+        window.toggleTimer = () => {
+            if(timer) { clearInterval(timer); timer = null; document.getElementById('timer').textContent = "20:00"; document.getElementById('timer-btn').textContent = "COMEÇAR"; return; }
+            let s = 20 * 60;
+            document.getElementById('timer-btn').textContent = "CANCELAR";
+            timer = setInterval(async () => {
+                s--;
+                document.getElementById('timer').textContent = `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+                if(s <= 0) {
+                    clearInterval(timer);
+                    await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { oil: (stats.oil || 0) + 1 });
+                    alert("Fogo alimentado! +1 Óleo.");
+                    window.toggleTimer();
+                }
+            }, 1000);
+        };
+
+        window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebar-overlay').classList.toggle('hidden'); };
+        window.switchTab = (t) => { document.getElementById('section-tasks').classList.toggle('hidden', t !== 'tasks'); document.getElementById('section-foco').classList.toggle('hidden', t !== 'foco'); window.toggleSidebar(); };
+        window.openAuth = (m) => { authMode = m; document.getElementById('modal-title').textContent = m === 'link' ? "Salvar Herói" : "Retomar Herói"; document.getElementById('modal-auth').classList.remove('hidden'); };
+        window.closeAuth = () => document.getElementById('modal-auth').classList.add('hidden');
+    </script>
+</body>
+</html>
+
 
     <!-- Loading -->
     <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 z-[9999]">
