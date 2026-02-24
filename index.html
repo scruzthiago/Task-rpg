@@ -3,166 +3,207 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task RPG - Final</title>
+    <title>Task RPG - Sistema de Contas</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // --- COLOQUE AS SUAS CHAVES AQUI ---
+        // --- COLOQUE AS SUAS CHAVES DO FIREBASE AQUI ---
         const firebaseConfig = {
             apiKey: "AIzaSyDGVTkVOvS9-y6TpIT1njjfYM6QhR_qZng",
   authDomain: "rpg-task-ffa2b.firebaseapp.com",
   projectId: "rpg-task-ffa2b",
   storageBucket: "rpg-task-ffa2b.firebasestorage.app",
   messagingSenderId: "954731298180",
-  appId: "1:954731298180:web:f318b5d794be18c14ab1d1"
+  appId: "1:954731298180:web:51b57b46042c1ad64ab1d1"
         };
-        // ----------------------------------
+        // ---------------------------------------------
 
-        window.firebase = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, writeBatch, firebaseConfig };
+        window.firebase = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signInWithEmailAndPassword, signOut, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, firebaseConfig };
     </script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
-        .xp-bar { height: 10px; transition: width 0.5s ease-in-out; }
-        .card-base { background-color: #1e293b; border: 1px solid #334155; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .flame-anim { animation: flameMove 2s infinite alternate; transform-origin: center bottom; }
-        @keyframes flameMove { from { transform: scale(1) rotate(-2deg); } to { transform: scale(1.1) rotate(2deg); } }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .card-base { background-color: #1e293b; border: 1px solid #334155; }
+        .xp-bar { height: 10px; transition: width 0.5s ease; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(6px); }
+        .btn-primary { background-color: #4f46e5; transition: all 0.2s; }
+        .btn-primary:active { transform: scale(0.95); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
+    <!-- Tela de Carregamento -->
     <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-slate-900 z-[9999]">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-indigo-500 mb-4"></div>
-        <p class="text-indigo-400 font-bold animate-pulse">A CONECTAR AO REINO...</p>
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
+        <p class="text-indigo-400 font-bold animate-pulse uppercase tracking-widest text-xs">Sincronizando Reino...</p>
     </div>
 
     <div id="app-content" class="hidden max-w-2xl mx-auto">
         <header class="flex justify-between items-center mb-6">
-            <button onclick="window.toggleSidebar()" class="bg-slate-800 p-2 rounded-lg text-white">☰ MENU</button>
-            <h1 class="text-2xl font-black text-indigo-400 tracking-widest italic">TASK RPG</h1>
-            <div class="w-8"></div>
+            <button onclick="window.toggleSidebar()" class="bg-slate-800 p-3 rounded-xl text-white shadow-lg">☰ MENU</button>
+            <h1 class="text-2xl font-black text-indigo-400 tracking-tighter italic">TASK RPG</h1>
+            <div class="w-10"></div>
         </header>
 
         <!-- Status do Herói -->
-        <div class="card-base p-6 rounded-3xl mb-8">
+        <div class="card-base p-6 rounded-3xl mb-6 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
             <div class="flex flex-col items-center mb-6">
-                <div class="text-6xl mb-3 bg-indigo-500/10 p-4 rounded-full border border-indigo-500/30">🧑‍🚀</div>
+                <div class="text-6xl mb-3 bg-indigo-500/10 p-5 rounded-full border border-indigo-500/20">🧑‍🚀</div>
                 <h2 id="hero-name" class="text-2xl font-bold">Herói</h2>
-                <p id="hero-email" class="text-[10px] text-slate-500 font-mono"></p>
+                <p id="hero-email" class="text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-widest"></p>
             </div>
             
             <div class="grid grid-cols-3 gap-3 mb-6">
-                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700">
-                    <span class="text-[10px] uppercase text-indigo-400 font-bold">Nível</span>
+                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
+                    <span class="text-[10px] uppercase text-indigo-400 font-black">Nível</span>
                     <div id="lvl" class="text-2xl font-black">1</div>
                 </div>
-                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700">
-                    <span class="text-[10px] uppercase text-yellow-500 font-bold">Moedas</span>
+                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
+                    <span class="text-[10px] uppercase text-yellow-500 font-black">Moedas</span>
                     <div id="coins" class="text-2xl font-black text-yellow-500">0</div>
                 </div>
-                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700">
-                    <span class="text-[10px] uppercase text-orange-500 font-bold">Óleo</span>
+                <div class="bg-slate-900/50 p-3 rounded-2xl text-center border border-slate-700/50">
+                    <span class="text-[10px] uppercase text-orange-500 font-black">Óleo</span>
                     <div id="oil" class="text-2xl font-black text-orange-500">0</div>
                 </div>
             </div>
 
-            <div class="w-full bg-slate-700 h-3 rounded-full overflow-hidden">
+            <div class="w-full bg-slate-700 h-2.5 rounded-full overflow-hidden">
                 <div id="xp-bar" class="xp-bar bg-indigo-500 h-full w-0"></div>
             </div>
         </div>
 
-        <!-- Secções -->
+        <!-- Seção de Missões -->
         <div id="view-tasks">
-            <div class="card-base p-5 rounded-2xl mb-4">
-                <input type="text" id="t-input" placeholder="Nova missão..." class="w-full bg-slate-900 p-3 rounded-xl mb-3 outline-none border border-slate-700 focus:border-indigo-500 text-white">
+            <div class="card-base p-5 rounded-2xl mb-4 shadow-xl">
+                <h3 class="text-sm font-bold text-slate-400 mb-3 uppercase tracking-wider">Nova Missão</h3>
+                <input type="text" id="t-input" placeholder="O que vais conquistar?" class="w-full bg-slate-900 p-4 rounded-xl mb-3 outline-none border border-slate-700 focus:border-indigo-500 transition-colors">
                 <div class="flex gap-2">
-                    <select id="t-diff" class="bg-slate-800 p-3 rounded-xl flex-1 text-sm">
+                    <select id="t-diff" class="bg-slate-800 p-4 rounded-xl flex-1 text-sm font-bold text-indigo-300">
                         <option value="easy">Fácil</option>
                         <option value="medium">Média</option>
                         <option value="hard">Difícil</option>
                     </select>
-                    <button onclick="window.addTask()" class="bg-indigo-600 px-6 rounded-xl font-bold">ADD</button>
+                    <button onclick="window.addTask()" class="btn-primary px-8 rounded-xl font-black shadow-lg shadow-indigo-500/20">ADD</button>
                 </div>
             </div>
             <div id="t-list" class="space-y-3"></div>
         </div>
 
+        <!-- Seção Foco -->
         <div id="view-foco" class="hidden text-center card-base p-10 rounded-3xl">
-            <h3 class="text-xl font-bold mb-8 uppercase tracking-widest text-indigo-400">Fogueira de Foco</h3>
-            <div class="w-32 h-32 mx-auto mb-8 flame-anim">
-                <svg viewBox="0 0 100 100"><path d="M50 95 Q 25 75 50 10 Q 75 75 50 95" fill="#f97316"/><path d="M50 90 Q 35 75 50 30 Q 65 75 50 90" fill="#fbbf24"/></svg>
-            </div>
-            <div id="timer" class="text-6xl font-mono font-black mb-8">20:00</div>
-            <button id="timer-btn" onclick="window.toggleTimer()" class="w-full bg-green-600 py-4 rounded-2xl font-bold text-xl shadow-lg">COMEÇAR</button>
-        </div>
-
-        <!-- Loja e Inventário Simplificados para o Tablet -->
-        <div id="view-store" class="hidden space-y-3">
-             <div class="card-base p-4 rounded-xl flex justify-between items-center">
-                <span>⚔️ Espada Básica</span>
-                <button onclick="window.buy(50)" class="bg-yellow-600 px-4 py-2 rounded-lg font-bold">💰 50</button>
-             </div>
+            <h3 class="text-xl font-bold mb-8 uppercase tracking-widest text-indigo-400">Sessão de Foco</h3>
+            <div id="timer" class="text-7xl font-mono font-black mb-10 text-white">20:00</div>
+            <button id="timer-btn" onclick="window.toggleTimer()" class="w-full bg-green-600 py-5 rounded-2xl font-black text-xl shadow-xl active:scale-95 transition-all">COMEÇAR SESSÃO</button>
         </div>
     </div>
 
-    <!-- Sidebar -->
+    <!-- Menu Lateral -->
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/80 z-40 hidden" onclick="window.toggleSidebar()"></div>
-    <div id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-slate-900 z-50 transform -translate-x-full transition-transform p-6 border-r border-slate-800">
-        <h3 class="text-xl font-bold mb-8">MENU</h3>
-        <nav class="space-y-2">
-            <button onclick="window.switchView('tasks')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl">⚔️ Missões</button>
-            <button onclick="window.switchView('foco')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl">🧘 Foco</button>
-            <button onclick="window.switchView('store')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl">💰 Loja</button>
-            <hr class="border-slate-800 my-4">
-            <button id="link-btn" onclick="window.showLink()" class="w-full p-4 bg-indigo-600 rounded-xl font-bold text-sm">🔗 SALVAR EM NUVEM</button>
-            <button id="logout-btn" onclick="window.logout()" class="hidden w-full p-4 text-red-400 font-bold">🚪 SAIR</button>
+    <div id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-slate-900 z-50 transform -translate-x-full transition-transform duration-300 p-8 flex flex-col border-r border-slate-800">
+        <h3 class="text-2xl font-black text-indigo-500 mb-10 italic tracking-tighter">MENU PRINCIPAL</h3>
+        <nav class="flex-1 space-y-3">
+            <button onclick="window.switchView('tasks')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold transition-colors">⚔️ Missões</button>
+            <button onclick="window.switchView('foco')" class="w-full text-left p-4 hover:bg-slate-800 rounded-xl font-bold transition-colors">🧘 Modo Foco</button>
+            <hr class="border-slate-800 my-6">
+            <button id="link-btn" onclick="window.openAuthModal('link')" class="w-full p-4 bg-indigo-600 rounded-xl font-black text-xs shadow-lg shadow-indigo-500/10">🔗 SALVAR EM NUVEM</button>
+            <button id="login-btn" onclick="window.openAuthModal('login')" class="w-full p-4 border border-indigo-500/30 text-indigo-400 rounded-xl font-bold text-xs mt-2">🔑 JÁ TENHO CONTA</button>
+            <button id="logout-btn" onclick="window.logout()" class="hidden w-full p-4 bg-red-900/20 text-red-400 rounded-xl font-bold text-xs mt-4">🚪 SAIR DA CONTA</button>
         </nav>
+        <p class="text-[10px] text-slate-600 text-center uppercase tracking-widest font-bold">Task RPG v2.1</p>
     </div>
 
-    <!-- Modal Link -->
-    <div id="modal-link" class="modal-overlay hidden">
-        <div class="bg-slate-800 p-8 rounded-3xl border-2 border-indigo-500 w-80 text-center">
-            <h3 class="text-xl font-bold mb-4">Criar Conta</h3>
-            <input type="email" id="email" placeholder="Email" class="w-full p-3 bg-slate-900 rounded-xl mb-2 border border-slate-700">
-            <input type="password" id="pass" placeholder="Senha" class="w-full p-3 bg-slate-900 rounded-xl mb-6 border border-slate-700">
-            <div class="flex gap-2">
-                <button onclick="window.linkAccount()" class="flex-1 bg-green-600 p-3 rounded-xl font-bold">SALVAR</button>
-                <button onclick="document.getElementById('modal-link').classList.add('hidden')" class="flex-1 bg-slate-700 p-3 rounded-xl">SAIR</button>
+    <!-- Modal de Autenticação (Link/Login) -->
+    <div id="modal-auth" class="modal-overlay hidden">
+        <div class="bg-slate-800 p-8 rounded-3xl border-2 border-indigo-500 w-full max-w-[340px] text-center shadow-2xl">
+            <h3 id="modal-title" class="text-xl font-black mb-2 uppercase text-indigo-400">Vincular Conta</h3>
+            <p id="modal-desc" class="text-xs text-slate-400 mb-6">Salve seu progresso permanentemente.</p>
+            
+            <input type="email" id="auth-email" placeholder="E-mail" class="w-full p-4 bg-slate-900 rounded-xl mb-2 border border-slate-700 text-sm outline-none focus:border-indigo-500">
+            <input type="password" id="auth-pass" placeholder="Senha" class="w-full p-4 bg-slate-900 rounded-xl mb-6 border border-slate-700 text-sm outline-none focus:border-indigo-500">
+            
+            <div class="flex flex-col gap-2">
+                <button id="auth-submit-btn" onclick="window.handleAuthSubmit()" class="w-full bg-green-600 py-4 rounded-xl font-black text-white shadow-lg disabled:opacity-50">CONFIRMAR</button>
+                <button onclick="window.closeAuthModal()" class="w-full py-4 text-slate-500 text-xs font-bold">CANCELAR</button>
             </div>
         </div>
     </div>
 
     <script type="module">
-        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, signOut, firebaseConfig } = window.firebase;
+        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signInWithEmailAndPassword, signOut, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, getDoc, firebaseConfig } = window.firebase;
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "rpg-task-v2";
+        const appId = "rpg-task-v3"; // Nova versão para garantir dados limpos
 
-        let user = null, stats = {}, tasks = [], timer = null;
+        let user = null, stats = {}, tasks = [], timer = null, authMode = 'link';
 
-        // --- Auth ---
+        // --- Sistema de Autenticação ---
         onAuthStateChanged(auth, (u) => {
             if (u) {
                 user = u;
                 document.getElementById('app-content').classList.remove('hidden');
                 document.getElementById('loading-screen').classList.add('hidden');
-                document.getElementById('hero-email').textContent = u.isAnonymous ? "Conta Local" : u.email;
+                document.getElementById('hero-email').textContent = u.isAnonymous ? "Sessão Convidado" : u.email;
+                
+                // Gerenciar botões do menu
                 document.getElementById('link-btn').classList.toggle('hidden', !u.isAnonymous);
+                document.getElementById('login-btn').classList.toggle('hidden', !u.isAnonymous);
                 document.getElementById('logout-btn').classList.toggle('hidden', u.isAnonymous);
+                
                 startSync();
             } else {
-                signInAnonymously(auth).catch(e => alert("Erro ao ligar: " + e.message));
+                signInAnonymously(auth).catch(e => alert("Falha na conexão: " + e.message));
             }
         });
 
+        window.handleAuthSubmit = async () => {
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-pass').value;
+            const btn = document.getElementById('auth-submit-btn');
+
+            if(!email || pass.length < 6) return alert("Email inválido ou senha muito curta (mín. 6).");
+            
+            btn.disabled = true;
+            btn.textContent = "PROCESSANDO...";
+
+            try {
+                if(authMode === 'link') {
+                    // Tenta vincular conta anônima atual
+                    const cred = EmailAuthProvider.credential(email, pass);
+                    await linkWithCredential(auth.currentUser, cred);
+                    alert("✅ Conta Vinculada! Seu progresso agora está seguro na nuvem.");
+                } else {
+                    // Tenta fazer login em conta existente
+                    await signInWithEmailAndPassword(auth, email, pass);
+                    alert("👋 Bem-vindo de volta, Herói!");
+                }
+                window.closeAuthModal();
+                location.reload();
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = "CONFIRMAR";
+                
+                if (err.code === 'auth/provider-already-linked') {
+                    alert("Esta conta já está vinculada a um e-mail.");
+                    window.closeAuthModal();
+                } else if (err.code === 'auth/email-already-in-use') {
+                    alert("Este e-mail já está registrado. Use a opção 'Já tenho conta'.");
+                } else {
+                    alert("Erro: " + err.message);
+                }
+            }
+        };
+
+        // --- Sincronização de Dados ---
         function startSync() {
             onSnapshot(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), (s) => {
-                stats = s.exists() ? s.data() : { lvl: 1, xp: 0, coins: 0, oil: 0, name: "Herói" };
+                stats = s.exists() ? s.data() : { lvl: 1, xp: 0, coins: 0, oil: 0 };
                 updateUI();
             });
             onSnapshot(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), (s) => {
@@ -172,81 +213,71 @@
         }
 
         function updateUI() {
-            document.getElementById('lvl').textContent = stats.lvl;
-            document.getElementById('coins').textContent = stats.coins;
-            document.getElementById('oil').textContent = stats.oil;
-            const xpMax = stats.lvl * 100;
-            document.getElementById('xp-bar').style.width = `${(stats.xp / xpMax) * 100}%`;
+            document.getElementById('lvl').textContent = stats.lvl || 1;
+            document.getElementById('coins').textContent = stats.coins || 0;
+            document.getElementById('oil').textContent = stats.oil || 0;
+            const xpMax = (stats.lvl || 1) * 100;
+            document.getElementById('xp-bar').style.width = `${((stats.xp || 0) / xpMax) * 100}%`;
         }
 
         window.addTask = async () => {
             const name = document.getElementById('t-input').value;
             const diff = document.getElementById('t-diff').value;
             if(!name) return;
-            await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), { name, diff, done: false });
+            await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/tasks`), { name, diff, createdAt: Date.now() });
             document.getElementById('t-input').value = "";
         };
 
         function renderTasks() {
             const list = document.getElementById('t-list');
-            list.innerHTML = tasks.map(t => `
-                <div class="bg-slate-800/50 p-4 rounded-2xl flex justify-between items-center border border-slate-700">
-                    <div><p class="font-bold">${t.name}</p><span class="text-[10px] text-indigo-400 uppercase">${t.diff}</span></div>
-                    <button onclick="window.complete('${t.id}', '${t.diff}')" class="bg-indigo-600 px-4 py-2 rounded-xl font-bold">✓</button>
+            list.innerHTML = tasks.length === 0 ? '<p class="text-center text-slate-600 py-6 italic text-sm">Nenhuma missão no horizonte...</p>' : 
+            tasks.sort((a,b) => b.createdAt - a.createdAt).map(t => `
+                <div class="bg-slate-800/40 p-4 rounded-2xl flex justify-between items-center border border-slate-700/50 shadow-inner">
+                    <div><p class="font-bold text-white text-sm">${t.name}</p><span class="text-[9px] text-indigo-400 uppercase font-black tracking-widest">${t.diff}</span></div>
+                    <button onclick="window.complete('${t.id}', '${t.diff}')" class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 px-5 py-2 rounded-xl font-black text-xs active:bg-indigo-600 active:text-white transition-all">CONCLUIR</button>
                 </div>
             `).join('');
         }
 
         window.complete = async (id, diff) => {
             const gain = diff === 'easy' ? 10 : (diff === 'medium' ? 25 : 50);
-            let nxp = stats.xp + gain;
-            let nlvl = stats.lvl;
-            if(nxp >= stats.lvl * 100) { nxp = 0; nlvl++; }
-            await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { ...stats, xp: nxp, lvl: nlvl, coins: stats.coins + Math.floor(gain/2) });
+            let nxp = (stats.xp || 0) + gain;
+            let nlvl = (stats.lvl || 1);
+            if(nxp >= nlvl * 100) { nxp = 0; nlvl++; }
+            await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { ...stats, xp: nxp, lvl: nlvl, coins: (stats.coins || 0) + Math.floor(gain/2) });
             await deleteDoc(doc(db, `artifacts/${appId}/users/${user.uid}/tasks`, id));
         };
 
+        // --- Timer de Foco ---
         window.toggleTimer = () => {
-            if(timer) { clearInterval(timer); timer = null; document.getElementById('timer-btn').textContent = "COMEÇAR"; return; }
+            if(timer) { clearInterval(timer); timer = null; document.getElementById('timer').textContent = "20:00"; document.getElementById('timer-btn').textContent = "COMEÇAR SESSÃO"; document.getElementById('timer-btn').classList.replace('bg-red-600', 'bg-green-600'); return; }
             let s = 20 * 60;
-            document.getElementById('timer-btn').textContent = "PARAR";
+            document.getElementById('timer-btn').textContent = "DESISTIR (CANCELAR)";
+            document.getElementById('timer-btn').classList.replace('bg-green-600', 'bg-red-600');
             timer = setInterval(async () => {
                 s--;
                 document.getElementById('timer').textContent = `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
                 if(s <= 0) {
                     clearInterval(timer);
-                    await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { oil: stats.oil + 1 });
-                    alert("Fogo alimentado! +1 Óleo.");
+                    await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { oil: (stats.oil || 0) + 1 });
+                    alert("✨ Foco Absoluto! Você ganhou 1 Frasco de Óleo.");
                     window.toggleTimer();
                 }
             }, 1000);
         };
 
+        // --- Interface ---
         window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebar-overlay').classList.toggle('hidden'); };
-        window.switchView = (v) => { 
-            document.getElementById('view-tasks').classList.toggle('hidden', v !== 'tasks');
-            document.getElementById('view-foco').classList.toggle('hidden', v !== 'foco');
-            document.getElementById('view-store').classList.toggle('hidden', v !== 'store');
-            window.toggleSidebar();
+        window.switchView = (v) => { document.getElementById('view-tasks').classList.toggle('hidden', v !== 'tasks'); document.getElementById('view-foco').classList.toggle('hidden', v !== 'foco'); window.toggleSidebar(); };
+        window.openAuthModal = (mode) => { 
+            authMode = mode;
+            document.getElementById('modal-title').textContent = mode === 'link' ? "Salvar em Nuvem" : "Entrar na Conta";
+            document.getElementById('modal-desc').textContent = mode === 'link' ? "Vincule um e-mail para não perder o progresso." : "Recupere seu herói salvo.";
+            document.getElementById('modal-auth').classList.remove('hidden'); 
         };
-        window.showLink = () => document.getElementById('modal-link').classList.remove('hidden');
-        window.logout = () => signOut(auth).then(() => location.reload());
-        window.buy = async (p) => {
-            if(stats.coins < p) return alert("Moedas insuficientes!");
-            await updateDoc(doc(db, `artifacts/${appId}/users/${user.uid}/data`, 'stats'), { coins: stats.coins - p });
-            alert("Item comprado!");
-        };
-
-        window.linkAccount = async () => {
-            const e = document.getElementById('email').value;
-            const p = document.getElementById('pass').value;
-            const cred = EmailAuthProvider.credential(e, p);
-            try {
-                await linkWithCredential(auth.currentUser, cred);
-                alert("Conta guardada com sucesso!");
-                location.reload();
-            } catch(err) { alert(err.message); }
-        };
+        window.closeAuthModal = () => document.getElementById('modal-auth').classList.add('hidden');
+        window.logout = () => { if(confirm("Deseja mesmo sair?")) signOut(auth).then(() => location.reload()); };
+        window.toggleSidebar(); // Garantir fechado no início
     </script>
 </body>
 </html>
